@@ -267,13 +267,13 @@ namespace UnicorntoCLIConverter
             return result?.i ?? -1;
         }
 
-        private void CountInclude()
+        private void CountInclude(int predicateNumber)
         {
-            int includeCount = 0;
+            int includeCount = 0;            
 
-            for (intLineNumTracker = 0; intLineNumTracker <= predicateEndLineNum; intLineNumTracker++)
+            for (int intCounter = PredicateList[predicateNumber - 1].StartLineIndex; intCounter <= PredicateList[predicateNumber - 1].EndLineIndex; intCounter++)
             {
-                string currline = lstConfig[intLineNumTracker];
+                string currline = lstConfig[intCounter];
 
                 if (currline.ToLowerInvariant().Contains("<include")) includeCount += 1;
 
@@ -489,8 +489,9 @@ namespace UnicorntoCLIConverter
             GetPredicateLineNumbers(configFileData);
             string strConfigText = configFileData;//txtConfig.Text;
             lstConfig = strConfigText.Split(new Char[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
-            CountInclude();
+            
             string convertedLine = string.Empty;
+            int CurrentConfigNumber = 0;
 
             for (intLineNumTracker = configurations.StartLineIndex; intLineNumTracker <= configurations.EndLineIndex; intLineNumTracker++)
             {
@@ -504,13 +505,14 @@ namespace UnicorntoCLIConverter
                             var line = lstConfig[intLineNumTracker];
 
                             convertedLine = GetConfigurationLine(line, config.ConfigurationNumber);
+                            CurrentConfigNumber = config.ConfigurationNumber;//same as predicate number
                         }
 
                     }
 
                     foreach (var predicate in PredicateList)
                     {
-
+                        
                         if (intLineNumTracker >= predicate.StartLineIndex && intLineNumTracker <= predicate.EndLineIndex)
                         {
                             //intCurrentInclude = 0;
@@ -518,6 +520,7 @@ namespace UnicorntoCLIConverter
                             if (intLineNumTracker == predicate.StartLineIndex)
                             {
                                 intCurrentInclude = 0;
+                                CountInclude(CurrentConfigNumber);
                                 convertedLine += "\r\t\t" + "\"includes\": [";
                             }
 
@@ -621,6 +624,7 @@ namespace UnicorntoCLIConverter
             foreach (var file in configFiles)
             {
                 //ExtractCommentedLines(file);
+                configurationNumber = 0;
                 var convertedJsonString=ConverttoCLIModuleJson(file);
                 if (!string.IsNullOrWhiteSpace(convertedJsonString))
                 {
