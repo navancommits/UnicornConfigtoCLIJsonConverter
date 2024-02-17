@@ -304,10 +304,17 @@ namespace UnicorntoCLIConverter
 
                 if (currline.Trim().ToLowerInvariant().Substring(currline.Trim().Length - 2, 2) != "/>")
                 {
-                    convertedLine += ",";
-                    excludesPresent = true;
-
-                    convertedLine += BuildRules(convertedLine);
+                    if (string.IsNullOrWhiteSpace(BuildRules(convertedLine)))
+                    {
+                        convertedLine += string.Empty;
+                        excludesPresent = false;
+                    }
+                    else
+                    {
+                        convertedLine += BuildRules(convertedLine);
+                        convertedLine += ",";
+                        excludesPresent = true;
+                    }
                 }
 
                 if (!string.IsNullOrWhiteSpace(ruleList)) convertedLine += ruleList;
@@ -513,7 +520,7 @@ namespace UnicorntoCLIConverter
 
             GetLineNumbers(configFileData);
 
-            GetPredicateLineNumbers(configFileData);
+            //GetPredicateLineNumbers(configFileData);
             string strConfigText = configFileData;//txtConfig.Text;
             lstConfig = strConfigText.Split(new Char[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
 
