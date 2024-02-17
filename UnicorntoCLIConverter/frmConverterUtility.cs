@@ -1,3 +1,5 @@
+using static System.Windows.Forms.LinkLabel;
+
 namespace UnicorntoCLIConverter
 {
 
@@ -328,7 +330,31 @@ namespace UnicorntoCLIConverter
             return convertedLine;
         }
 
+        private void ExtractCommentedLineNumbers()
+        {
+            for (int intTracker = configurations.StartLineIndex; intTracker <= configurations.EndLineIndex; intTracker++)
+            {
+                string currline = lstConfig[intTracker];
 
+                if (currline.Trim().StartsWith("<!--") && currline.Trim().EndsWith("-->"))
+                    CommentedLines.Add(intTracker);
+
+                if (currline.Trim().StartsWith("<!--") && !currline.Trim().EndsWith("-->"))
+                {
+                    do
+                    {
+                        CommentedLines.Add(intTracker);
+                        intTracker += 1;
+                    } while (!lstConfig[intTracker].Trim().EndsWith("-->"));
+                }
+
+
+                if (currline.Trim().StartsWith("-->"))
+                    CommentedLines.Add(intTracker);
+
+            }
+
+        }
 
         private string BuildRules(string convertedlines)
         {
@@ -489,7 +515,9 @@ namespace UnicorntoCLIConverter
             GetPredicateLineNumbers(configFileData);
             string strConfigText = configFileData;//txtConfig.Text;
             lstConfig = strConfigText.Split(new Char[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
-            
+
+            ExtractCommentedLineNumbers();
+
             string convertedLine = string.Empty;
             int CurrentConfigNumber = 0;
 
