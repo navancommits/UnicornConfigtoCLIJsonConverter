@@ -50,10 +50,33 @@ namespace UnicorntoCLIConverter
         private int configurationNumber = 0;
         private int ConfigurationStartLine = 0;
         private int PredicateStartLine = 0;
+        private List<string> FileNameList;
+        private int intFileIndex = 0;
+        private string FilePaths = string.Empty;
+        private List<int> CommentedLines;
         public frmConverterUtility()
         {
             InitializeComponent();
         }
+
+        //private void ExtractCommentedLines(string filePath)
+        //{
+        //    string configFileData = File.ReadAllText(filePath);
+        //    string[] lstConfig = configFileData.Split(new Char[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
+        //    int intLineNumTrackerIndex = 0;
+
+        //    foreach (var line in lstConfig)
+        //    {
+        //        if (line.Trim().StartsWith("<!--"))
+        //        {
+        //            do
+        //            {
+        //                intLineNumTrackerIndex += 1;
+        //                CommentedLines.Add(intLineNumTrackerIndex);
+        //            } while (line.Trim().EndsWith("-->"));
+        //        }
+        //    }
+        //}
 
         private void GetLineNumbers(string configData)
         {
@@ -70,7 +93,6 @@ namespace UnicorntoCLIConverter
 
             foreach (var line in lstConfig)
             {
-
                 if (line.ToLowerInvariant().Contains("<configurations>"))
                 {
                     configurations = new Configurations
@@ -90,8 +112,9 @@ namespace UnicorntoCLIConverter
                     configurationNumber += 1;
                     configuration = new Configuration
                     {
-                        StartLineIndex = intLineNumTrackerIndex
-                    };
+                        StartLineIndex = intLineNumTrackerIndex,
+                        ModuleName= ExtractValueBetweenQuotes(line, "name=")
+                };
 
                 }
 
@@ -336,21 +359,25 @@ namespace UnicorntoCLIConverter
                         do
                         {
                             if (!IsBlankLine(intLineNumTracker))  currline = lstConfig[intLineNumTracker];
-                            var extractChildtoInclude = ExtractValueBetweenQuotes(currline, "name=", true);
 
-                            ruleList += "\r\t\t\t\t\t\t {";
+                            if (currline.ToLowerInvariant().Contains("except ") && currline.ToLowerInvariant().Contains("name"))
+                            {
+                                var extractChildtoInclude = ExtractValueBetweenQuotes(currline, "name=", true);
 
-                            if(currline.ToLowerInvariant().Contains("except") && currline.ToLowerInvariant().Contains("includechildren=\"true\""))
+                                ruleList += "\r\t\t\t\t\t\t {";
+
+                                if (currline.ToLowerInvariant().Contains("except") && currline.ToLowerInvariant().Contains("includechildren=\"true\""))
                                 { ruleList += "\r\t\t\t\t\t\t\t \"scope\" : \"ItemandDescendants\","; }
-                            else
+                                else
                                 { ruleList += "\r\t\t\t\t\t\t\t \"scope\" : \"SingleItem\","; }
-                            
-                            ruleList += "\r\t\t\t\t\t\t\t \"path\" : " + extractChildtoInclude;
-                            ruleList += "\r\t\t\t\t\t\t }";
 
-                            // if (lstConfig[intLineNumTracker + 1].Trim() != "</exclude>" && !RulesListed)
-                            // {
-                            ruleList += ",";
+                                ruleList += "\r\t\t\t\t\t\t\t \"path\" : " + extractChildtoInclude;
+                                ruleList += "\r\t\t\t\t\t\t }";
+
+                                // if (lstConfig[intLineNumTracker + 1].Trim() != "</exclude>" && !RulesListed)
+                                // {
+                                ruleList += ",";
+                            }
                             //}
 
                             intLineNumTracker += 1;
@@ -391,6 +418,7 @@ namespace UnicorntoCLIConverter
         private string ExtractValueBetweenQuotes(string currline, string subStringStart, bool path = false)
         {
             int intIncludeModuleName = currline.LastIndexOf(subStringStart, StringComparison.Ordinal);
+            if (intIncludeModuleName == -1) return string.Empty;
             string stringforIncludeName = currline.Substring(intIncludeModuleName);
 
             var intFirst = IndexofnthOccurence(stringforIncludeName, '"', 1);
@@ -447,9 +475,11 @@ namespace UnicorntoCLIConverter
             //if (currline.ToLowerInvariant().Contains("</include>")) intIncludeCount += 1;
         }
 
-        private string ConverttoCLIModuleJson(string configFileData)
+        private string ConverttoCLIModuleJson(string filePath)
         {
+            string configFileData = File.ReadAllText(filePath);
             ruleList = string.Empty;
+
             if (!(configFileData.ToLowerInvariant().Contains("<predicate") && configFileData.ToLowerInvariant().Contains("<configuration ")))
                     return string.Empty;//not serialization config
 
@@ -463,50 +493,91 @@ namespace UnicorntoCLIConverter
 
             for (intLineNumTracker = configurations.StartLineIndex; intLineNumTracker <= configurations.EndLineIndex; intLineNumTracker++)
             {
-                foreach (var config in ConfigurationList)
-                {
-                    if (intLineNumTracker == config.StartLineIndex)
+                //if (!CommentedLines.Contains(intLineNumTracker))
+                //{
+
+                    foreach (var config in ConfigurationList)
                     {
-                        var line = lstConfig[intLineNumTracker];
-
-                        convertedLine += GetConfigurationLine(line, config.ConfigurationNumber);
-                    }
-
-                }
-
-                foreach (var predicate in PredicateList)
-                {
-                    
-                    if (intLineNumTracker >= predicate.StartLineIndex && intLineNumTracker <= predicate.EndLineIndex)
-                    {
-                        //intCurrentInclude = 0;
-
-                        if (intLineNumTracker == predicate.StartLineIndex)
+                        if (intLineNumTracker == config.StartLineIndex)
                         {
-                            intCurrentInclude = 0;
-                            convertedLine += "\r\t\t" + "\"includes\": [";
+                            var line = lstConfig[intLineNumTracker];
+
+                            convertedLine = GetConfigurationLine(line, config.ConfigurationNumber);
                         }
 
-                        convertedLine += GetInfoforInclude();
-
-                        if (intLineNumTracker == predicate.EndLineIndex) convertedLine += "\r\t\t" + "]";
                     }
 
-                }
-
-                //closing brackets
-                foreach (var config in ConfigurationList)
-                {
-                    if (intLineNumTracker == config.EndLineIndex)
+                    foreach (var predicate in PredicateList)
                     {
-                        var line = lstConfig[intLineNumTracker];
 
-                        if (intLineNumTracker == config.EndLineIndex) convertedLine += itemsEndLine + endLine;
+                        if (intLineNumTracker >= predicate.StartLineIndex && intLineNumTracker <= predicate.EndLineIndex)
+                        {
+                            //intCurrentInclude = 0;
+
+                            if (intLineNumTracker == predicate.StartLineIndex)
+                            {
+                                intCurrentInclude = 0;
+                                convertedLine += "\r\t\t" + "\"includes\": [";
+                            }
+
+                            convertedLine += GetInfoforInclude();
+
+                            if (intLineNumTracker == predicate.EndLineIndex) convertedLine += "\r\t\t" + "]";
+                        }
+
                     }
-                }
+
+                    //closing brackets
+                    foreach (var config in ConfigurationList)
+                    {
+                        if (intLineNumTracker == config.EndLineIndex)
+                        {
+
+                            var line = lstConfig[intLineNumTracker];
+
+                            if (intLineNumTracker == config.EndLineIndex) convertedLine += itemsEndLine + endLine;
+
+                            SaveFile(convertedLine, config, filePath);//Save one file at a time
+                                                                      //if (!string.IsNullOrWhiteSpace(convertedLine))
+                                                                      //{
+                                                                      //    //ok to save
+                                                                      //    var fileName = Path.GetFileNameWithoutExtension(file);
+                                                                      //    var jsonFileFullPath = Path.GetDirectoryName(file) + "\\" + Path.GetFileNameWithoutExtension(file) + ".module.json";
+
+                            //    File.WriteAllText(jsonFileFullPath, convertedJsonString);
+                            //    filePaths += jsonFileFullPath + "\r";
+                            //    fileCount++;
+                            //}
+                        }
+                    }
+                //}
             }
 
             return convertedLine;
+        }
+
+        private string SaveFile(string concatenatedLines,Configuration config, string fileFullPath)
+        {
+            if (!string.IsNullOrWhiteSpace(concatenatedLines))
+            {
+                //ok to save
+                string jsonFileFullPath = string.Empty;
+
+                if (ConfigurationList.Count > 1)
+                {
+                    jsonFileFullPath = Path.GetDirectoryName(fileFullPath) + "\\" + config.ModuleName.Replace("\"",string.Empty) + ".module.json";
+                }
+                else
+                {
+                    var fileName = Path.GetFileNameWithoutExtension(fileFullPath);
+                    jsonFileFullPath = Path.GetDirectoryName(fileFullPath) + "\\" + fileName + ".module.json";
+                }
+
+                File.WriteAllText(jsonFileFullPath, concatenatedLines);
+                FilePaths += jsonFileFullPath + "\r";
+            }
+
+            return FilePaths;
         }
         private void btnPreview_Click(object sender, EventArgs e)
         {
@@ -536,26 +607,23 @@ namespace UnicorntoCLIConverter
         private void button2_Click(object sender, EventArgs e)
         {
             if (string.IsNullOrWhiteSpace(txtSelectedPath.Text)) return;
+            CommentedLines = new List<int>();
 
             var ext = new List<string> { "config" };
             var configFiles = Directory
                 .EnumerateFiles(txtSelectedPath.Text, "*.config", SearchOption.AllDirectories)
                 .Where(s => ext.Contains(Path.GetExtension(s).TrimStart('.').ToLowerInvariant()));
+
             string filePaths = string.Empty;
             int fileCount = 0;
 
             foreach (var file in configFiles)
             {
-                var convertedJsonString=ConverttoCLIModuleJson(File.ReadAllText(file));
-
+                //ExtractCommentedLines(file);
+                var convertedJsonString=ConverttoCLIModuleJson(file);
                 if (!string.IsNullOrWhiteSpace(convertedJsonString))
                 {
-                    //ok to save
-                    var fileName = Path.GetFileNameWithoutExtension(file);
-                    var jsonFileFullPath = Path.GetDirectoryName(file) + "\\" + Path.GetFileNameWithoutExtension(file) + ".module.json";
-
-                    File.WriteAllText(jsonFileFullPath, convertedJsonString);
-                    filePaths += jsonFileFullPath + "\r";
+                    filePaths += file + "\r";
                     fileCount++;
                 }
             }
@@ -563,7 +631,7 @@ namespace UnicorntoCLIConverter
             var statusFileFullPath = ".\\unicorntocliconverter-statuslog-" + DateTime.Now.ToString("yyyymmdd Hmmss") + ".txt";
             File.WriteAllText(statusFileFullPath, filePaths);
 
-            MessageBox.Show(fileCount + " files converted");
+            MessageBox.Show(fileCount + " file(s) converted");
         }
 
         internal class Predicate
@@ -573,11 +641,19 @@ namespace UnicorntoCLIConverter
             internal int PredicateNumber { get; set; }
         }
 
+        internal class FileDetails
+        {
+            internal string FileName { get; set; }
+            internal string FileData { get; set;}
+            internal int FileNumber { get; set; }
+        }
+
         internal class Configuration
         {
             internal int StartLineIndex { get; set; }
             internal int EndLineIndex { get; set; }
             internal int ConfigurationNumber { get; set; }
+            internal string ModuleName { get; set; }
         }
 
         internal class Include
