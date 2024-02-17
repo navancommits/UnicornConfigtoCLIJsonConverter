@@ -370,6 +370,7 @@ namespace UnicorntoCLIConverter
                         convertedlines = "\r\t\t\t\t \"scope\" : \"SingleItem\"";
                         var nextline = lstConfig[intLineNumTracker + 1];
                         //if (!nextline.ToLowerInvariant().Contains("except")) return convertedlines;
+                        if (!CommentedLines.Contains(intLineNumTracker+1))
                         if (!nextline.ToLowerInvariant().Contains("except")) return convertedlines;//uncommented since without this scope is not added when exclude has only one except with children=true - xxxx.Feature.Serialization.config.
 
                     }
