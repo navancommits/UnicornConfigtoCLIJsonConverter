@@ -302,17 +302,21 @@ namespace UnicorntoCLIConverter
                 convertedLine += "\r\t\t\t\t \"path\" : " + includeModulePath + ",";
                 convertedLine += "\r\t\t\t\t \"database\" : " + includeModuleDB;
 
+                var rules = string.Empty;
+
                 if (currline.Trim().ToLowerInvariant().Substring(currline.Trim().Length - 2, 2) != "/>")
                 {
-                    if (string.IsNullOrWhiteSpace(BuildRules(convertedLine)))
+                    rules = BuildRules(convertedLine);
+                    if (string.IsNullOrWhiteSpace(rules))
                     {
                         convertedLine += string.Empty;
                         excludesPresent = false;
                     }
                     else
                     {
-                        convertedLine += BuildRules(convertedLine);
                         convertedLine += ",";
+                        convertedLine += rules;
+                        //convertedLine += ",";
                         excludesPresent = true;
                     }
                 }
@@ -388,7 +392,7 @@ namespace UnicorntoCLIConverter
                         //these must be serialized too
                         if (string.IsNullOrWhiteSpace(ruleList))
                         {
-                            ruleList += "\r\t\t\t\t \"rules\": [";
+                            ruleList += ",\r\t\t\t\t \"rules\": [";
                         }
 
                         do
