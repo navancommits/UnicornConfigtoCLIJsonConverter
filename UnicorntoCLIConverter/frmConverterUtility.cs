@@ -1,3 +1,4 @@
+using System.Diagnostics.Eventing.Reader;
 using static System.Windows.Forms.LinkLabel;
 
 namespace UnicorntoCLIConverter
@@ -663,13 +664,18 @@ namespace UnicorntoCLIConverter
 
             foreach (var file in configFiles)
             {
-                //ExtractCommentedLines(file);
-                configurationNumber = 0;
-                var convertedJsonString=ConverttoCLIModuleJson(file);
-                if (!string.IsNullOrWhiteSpace(convertedJsonString))
+                if (file.ToLowerInvariant().Contains("obj\\debug") || file.ToLowerInvariant().Contains("\\bin\\") || file.ToLowerInvariant().Contains("\\packages\\") || file.ToLowerInvariant().Contains("\\.vs\\") || file.ToLowerInvariant().Contains("\\nuget.config") || file.ToLowerInvariant().Contains("\\packages.config") || file.ToLowerInvariant().Contains("\\web.config") || file.ToLowerInvariant().Contains("\\app.config") || file.ToLowerInvariant().Contains("\\web.debug.config") || file.ToLowerInvariant().Contains("\\web.release.config") || file.ToLowerInvariant().Contains("\\rainbow.config"))
+                { }
+                else
                 {
-                    filePaths += file + "\r";
-                    fileCount++;
+                    //ExtractCommentedLines(file);
+                    configurationNumber = 0;
+                    var convertedJsonString = ConverttoCLIModuleJson(file);
+                    if (!string.IsNullOrWhiteSpace(convertedJsonString))
+                    {
+                        filePaths += file + "\r";
+                        fileCount++;
+                    }
                 }
             }
 
