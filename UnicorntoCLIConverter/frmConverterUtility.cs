@@ -9,8 +9,8 @@ namespace UnicorntoCLIConverter
         private string ModuleNameLine = string.Empty;
         private string referencesLine = string.Empty;
         private string startingLine = "{";
-        private string itemsEndLine = "\r\t}";
-        private string endLine = "\r}";
+        private string itemsEndLine = "\r\n\t}";
+        private string endLine = "\r\n}";
         private bool includesPresent = false;
         private bool excludesPresent = false;
         private string includeModuleName = string.Empty;
@@ -66,6 +66,8 @@ namespace UnicorntoCLIConverter
         private int CurrentConfigNumber = 0;
         bool CreateOnlyDirective = false;
         int RunningConfigNumber = 0;
+        string SectionNamePrefix = string.Empty;
+        string ModuleNametoReplace = string.Empty;
 
         public frmConverterUtility()
         {
@@ -129,6 +131,9 @@ namespace UnicorntoCLIConverter
                         ModuleName = ExtractValueBetweenQuotes(line, "name=")
                     };
 
+                    
+                    SectionNamePrefix = ExtractValueBetweenQuotes(line, "name=").Replace(".", "-").Replace("\"",string.Empty);
+                    ModuleNametoReplace = SectionNamePrefix.Replace("-", ".");
                 }
 
                 if (line.ToLowerInvariant().Contains("newitemonlyevaluator")) CreateOnlyDirectiveConfigNumber.Add(configurationNumber);
@@ -309,11 +314,11 @@ namespace UnicorntoCLIConverter
                 includeDomainName = ExtractValueBetweenQuotes(currline, "domain=");
                 includePattern = ExtractValueBetweenQuotes(currline, "pattern=");
 
-                convertedLine += "\r\t\t\t{";
+                convertedLine += "\r\n\t\t\t{";
 
-                convertedLine += "\r\t\t\t\t \"domain\" : " + includeDomainName + ",";
-                convertedLine += "\r\t\t\t\t \"pattern\" : " + includePattern;
-                convertedLine += "\r\t\t\t}";
+                convertedLine += "\r\n\t\t\t\t \"domain\" : " + includeDomainName + ",";
+                convertedLine += "\r\n\t\t\t\t \"pattern\" : " + includePattern;
+                convertedLine += "\r\n\t\t\t}";
 
                 intCurrentInclude += 1;
 
@@ -339,14 +344,15 @@ namespace UnicorntoCLIConverter
                 currline.ToLowerInvariant().Contains("database=") && currline.ToLowerInvariant().Contains("path="))
             {
                 includeModuleName = ExtractValueBetweenQuotes(currline, "name=");
+                includeModuleName = includeModuleName.Replace(includeModuleName.Replace("\"",string.Empty), ConfigurationList[CurrentConfigNumber - 1].ModuleName.Replace("\"",string.Empty) + "-" + includeModuleName.Replace("\"", string.Empty)).Replace(".","-");
                 includeModulePath = ExtractValueBetweenQuotes(currline, "path=");
                 includeModuleDB = ExtractValueBetweenQuotes(currline, "database=");
 
-                convertedLine += "\r\t\t\t{";
+                convertedLine += "\r\n\t\t\t{";
 
-                convertedLine += "\r\t\t\t\t \"name\" : " + includeModuleName + ",";
-                convertedLine += "\r\t\t\t\t \"path\" : " + includeModulePath + ",";                
-                convertedLine += "\r\t\t\t\t \"database\" : " + includeModuleDB;
+                convertedLine += "\r\n\t\t\t\t \"name\" : " + includeModuleName + ",";
+                convertedLine += "\r\n\t\t\t\t \"path\" : " + includeModulePath + ",";                
+                convertedLine += "\r\n\t\t\t\t \"database\" : " + includeModuleDB;
 
                 var rules = string.Empty;
 
@@ -358,7 +364,7 @@ namespace UnicorntoCLIConverter
                         convertedLine += string.Empty;
                         excludesPresent = false;
                         if (Right(convertedLine, 1) != ",") convertedLine += ",";
-                        if (CreateOnlyDirectiveConfigNumber.Contains(CurrentConfigNumber)) convertedLine += "\r\t\t\t\t \"allowedPushOperations\" : \"CreateOnly\"";
+                        if (CreateOnlyDirectiveConfigNumber.Contains(CurrentConfigNumber)) convertedLine += "\r\n\t\t\t\t \"allowedPushOperations\" : \"CreateOnly\"";
                     }    
                     else
                     {
@@ -369,13 +375,13 @@ namespace UnicorntoCLIConverter
                 {
                     //just include
                     //if (Right(convertedLine, 1) != ",") convertedLine += ",";
-                    if (CreateOnlyDirectiveConfigNumber.Contains(CurrentConfigNumber)) convertedLine += ",\r\t\t\t\t \"allowedPushOperations\" : \"CreateOnly\"";
+                    if (CreateOnlyDirectiveConfigNumber.Contains(CurrentConfigNumber)) convertedLine += ",\r\n\t\t\t\t \"allowedPushOperations\" : \"CreateOnly\"";
                 }
 
                 if (!string.IsNullOrWhiteSpace(ruleList)) convertedLine += ruleList;
                 ruleList = string.Empty;
 
-                convertedLine += "\r\t\t\t}";
+                convertedLine += "\r\n\t\t\t}";
 
                 intCurrentInclude += 1;
 
@@ -434,7 +440,7 @@ namespace UnicorntoCLIConverter
 
                     if (currline.ToLowerInvariant().Contains("exclude") && currline.ToLowerInvariant().Contains("children=\"true\""))
                     {
-                        if (currline.ToLowerInvariant().Contains("/>")) return ",\r\t\t\t\t \"scope\" : \"SingleItem\"";
+                        if (currline.ToLowerInvariant().Contains("/>")) return ",\r\n\t\t\t\t \"scope\" : \"SingleItem\"";
 
                         var nextline = lstConfig[intLineNumTracker + 1];
                         if (!CommentsPresent) 
@@ -450,7 +456,7 @@ namespace UnicorntoCLIConverter
                         //these must be serialized too
                         if (string.IsNullOrWhiteSpace(ruleList))
                         {
-                            ruleList += "\r\t\t\t\t \"rules\": [";
+                            ruleList += "\r\n\t\t\t\t \"rules\": [";
                         }
 
                         do
@@ -461,17 +467,17 @@ namespace UnicorntoCLIConverter
                             {
                                 var extractChildtoInclude = ExtractValueBetweenQuotes(currline, "name=", true);
 
-                                ruleList += "\r\t\t\t\t\t\t {";
+                                ruleList += "\r\n\t\t\t\t\t\t {";
 
                                 if (currline.ToLowerInvariant().Contains("except") && currline.ToLowerInvariant().Contains("includechildren=\"true\""))
-                                { ruleList += "\r\t\t\t\t\t\t\t \"scope\" : \"ItemandDescendants\","; }
+                                { ruleList += "\r\n\t\t\t\t\t\t\t \"scope\" : \"ItemandDescendants\","; }
                                 else
-                                { ruleList += "\r\t\t\t\t\t\t\t \"scope\" : \"SingleItem\","; }
+                                { ruleList += "\r\n\t\t\t\t\t\t\t \"scope\" : \"SingleItem\","; }
 
-                                ruleList += "\r\t\t\t\t\t\t\t \"path\" : " + extractChildtoInclude;
+                                ruleList += "\r\n\t\t\t\t\t\t\t \"path\" : " + extractChildtoInclude;
                                 
-                                if (CreateOnlyDirectiveConfigNumber.Contains(CurrentConfigNumber)) ruleList += ",\r\t\t\t\t\t\t\t \"allowedPushOperations\" : \"CreateOnly\"";
-                                ruleList += "\r\t\t\t\t\t\t }";
+                                if (CreateOnlyDirectiveConfigNumber.Contains(CurrentConfigNumber)) ruleList += ",\r\n\t\t\t\t\t\t\t \"allowedPushOperations\" : \"CreateOnly\"";
+                                ruleList += "\r\n\t\t\t\t\t\t }";
 
                                 // if (lstConfig[intLineNumTracker + 1].Trim() != "</exclude>" && !RulesListed)
                                 // {
@@ -485,10 +491,10 @@ namespace UnicorntoCLIConverter
 
                         if (lstConfig[intLineNumTracker].Trim() == "</exclude>")
                         {
-                            ruleList += "\r\t\t\t\t\t\t {";
-                            ruleList += "\r\t\t\t\t\t\t\t \"scope\" : \"ignored\",";
-                            ruleList += "\r\t\t\t\t\t\t\t \"path\" : \"*\"";
-                            ruleList += "\r\t\t\t\t\t\t }";
+                            ruleList += "\r\n\t\t\t\t\t\t {";
+                            ruleList += "\r\n\t\t\t\t\t\t\t \"scope\" : \"ignored\",";
+                            ruleList += "\r\n\t\t\t\t\t\t\t \"path\" : \"*\"";
+                            ruleList += "\r\n\t\t\t\t\t\t }";
 
                             RulesListed = true;
                         }
@@ -501,7 +507,7 @@ namespace UnicorntoCLIConverter
 
             if (!string.IsNullOrWhiteSpace(ruleList) && lstConfig[intLineNumTracker].Trim() == "</include>")
             {
-                ruleList += "\r\t\t\t\t ]";
+                ruleList += "\r\n\t\t\t\t ]";
             }
 
             return string.Empty;
@@ -567,9 +573,9 @@ namespace UnicorntoCLIConverter
             if (currline.ToLowerInvariant().Contains("dependencies"))
                 refLine = "\"references\": [" + ExtractValueBetweenQuotes(currline.Replace(",", "\",\""), "dependencies=") + "],";
 
-            if (occurrence > 1) return "\r{" + "\r\t" + moduleLine + "\r\t" + refLine + "\r\t" + "\"items\": {";
+            if (occurrence > 1) return "\r\n{" + "\r\n\t" + moduleLine + "\r\n\t" + refLine + "\r\n\t" + "\"items\": {";
 
-            return "{" + "\r\t" + moduleLine + "\r\t" + refLine + "\r\t" + "\"items\": {";
+            return "{" + "\r\n\t" + moduleLine + "\r\n\t" + refLine + "\r\n\t" + "\"items\": {";
 
             //if (currline.ToLowerInvariant().Contains("</include>")) intIncludeCount += 1;
         }
@@ -627,12 +633,12 @@ namespace UnicorntoCLIConverter
                         {
                             intCurrentInclude = 0;
                             CountInclude(CurrentConfigNumber);
-                            convertedLine += "\r\t\t" + "\"includes\": [";
+                            convertedLine += "\r\n\t\t" + "\"includes\": [";
                         }
 
                         convertedLine += GetInfoforInclude();
 
-                        if (intLineNumTracker == predicate.EndLineIndex) convertedLine += "\r\t\t" + "]";
+                        if (intLineNumTracker == predicate.EndLineIndex) convertedLine += "\r\n\t\t" + "]";
                     }
 
                 }
@@ -685,7 +691,7 @@ namespace UnicorntoCLIConverter
                 }
 
                 File.WriteAllText(jsonFileFullPath, concatenatedLines);
-                FilePaths += jsonFileFullPath + "\r";
+                FilePaths += jsonFileFullPath + "\r\n";
             }
 
             return FilePaths;
@@ -694,6 +700,7 @@ namespace UnicorntoCLIConverter
         {
             if (string.IsNullOrWhiteSpace(txtConfig.Text)) return; 
             CommentedLines = new List<int>();
+            CreateOnlyDirectiveConfigNumber = new List<int>();
 
             Mode = "P";
             txtJson.Text = ConverttoCLIModuleJson();
@@ -743,7 +750,7 @@ namespace UnicorntoCLIConverter
                     var convertedJsonString = ConverttoCLIModuleJson(file);
                     if (!string.IsNullOrWhiteSpace(convertedJsonString))
                     {
-                        filePaths += file + "\r";
+                        filePaths += file + "\r\n";
                         fileCount++;
                     }
                 }
