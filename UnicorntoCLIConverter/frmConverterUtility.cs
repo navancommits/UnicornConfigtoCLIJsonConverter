@@ -131,8 +131,8 @@ namespace UnicorntoCLIConverter
                         ModuleName = ExtractValueBetweenQuotes(line, "name=")
                     };
 
-                    
-                    SectionNamePrefix = ExtractValueBetweenQuotes(line, "name=").Replace(".", "-").Replace("\"",string.Empty);
+
+                    SectionNamePrefix = ExtractValueBetweenQuotes(line, "name=").Replace(".", "-").Replace("\"", string.Empty);
                     ModuleNametoReplace = SectionNamePrefix.Replace("-", ".");
                 }
 
@@ -344,14 +344,14 @@ namespace UnicorntoCLIConverter
                 currline.ToLowerInvariant().Contains("database=") && currline.ToLowerInvariant().Contains("path="))
             {
                 includeModuleName = ExtractValueBetweenQuotes(currline, "name=");
-                includeModuleName = includeModuleName.Replace(includeModuleName.Replace("\"",string.Empty), ConfigurationList[CurrentConfigNumber - 1].ModuleName.Replace("\"",string.Empty) + "-" + includeModuleName.Replace("\"", string.Empty)).Replace(".","-");
+                includeModuleName = includeModuleName.Replace(includeModuleName.Replace("\"", string.Empty), ConfigurationList[CurrentConfigNumber - 1].ModuleName.Replace("\"", string.Empty) + "-" + includeModuleName.Replace("\"", string.Empty)).Replace(".", "-");
                 includeModulePath = ExtractValueBetweenQuotes(currline, "path=");
                 includeModuleDB = ExtractValueBetweenQuotes(currline, "database=");
 
                 convertedLine += "\r\n\t\t\t{";
 
                 convertedLine += "\r\n\t\t\t\t \"name\" : " + includeModuleName + ",";
-                convertedLine += "\r\n\t\t\t\t \"path\" : " + includeModulePath + ",";                
+                convertedLine += "\r\n\t\t\t\t \"path\" : " + includeModulePath + ",";
                 convertedLine += "\r\n\t\t\t\t \"database\" : " + includeModuleDB;
 
                 var rules = string.Empty;
@@ -365,7 +365,7 @@ namespace UnicorntoCLIConverter
                         excludesPresent = false;
                         if (Right(convertedLine, 1) != ",") convertedLine += ",";
                         if (CreateOnlyDirectiveConfigNumber.Contains(CurrentConfigNumber)) convertedLine += "\r\n\t\t\t\t \"allowedPushOperations\" : \"CreateOnly\"";
-                    }    
+                    }
                     else
                     {
                         convertedLine += rules;
@@ -391,7 +391,7 @@ namespace UnicorntoCLIConverter
                 }
                 else
                 {
-                    if (Right(convertedLine, 1) != ",") convertedLine += ","; 
+                    if (Right(convertedLine, 1) != ",") convertedLine += ",";
                 }
             }
 
@@ -443,10 +443,10 @@ namespace UnicorntoCLIConverter
                         if (currline.ToLowerInvariant().Contains("/>")) return ",\r\n\t\t\t\t \"scope\" : \"SingleItem\"";
 
                         var nextline = lstConfig[intLineNumTracker + 1];
-                        if (!CommentsPresent) 
-                            { if (!nextline.ToLowerInvariant().Contains("except")) return convertedlines; }
-                        else 
-                            { if (!CommentedLines.Contains(intLineNumTracker + 1)) if (!nextline.ToLowerInvariant().Contains("except")) return convertedlines; }//uncommented since without this scope is not added when exclude has only one except with children=true - xxxx.Feature.Serialization.config.
+                        if (!CommentsPresent)
+                        { if (!nextline.ToLowerInvariant().Contains("except")) return convertedlines; }
+                        else
+                        { if (!CommentedLines.Contains(intLineNumTracker + 1)) if (!nextline.ToLowerInvariant().Contains("except")) return convertedlines; }//uncommented since without this scope is not added when exclude has only one except with children=true - xxxx.Feature.Serialization.config.
 
                     }
 
@@ -475,7 +475,7 @@ namespace UnicorntoCLIConverter
                                 { ruleList += "\r\n\t\t\t\t\t\t\t \"scope\" : \"SingleItem\","; }
 
                                 ruleList += "\r\n\t\t\t\t\t\t\t \"path\" : " + extractChildtoInclude;
-                                
+
                                 if (CreateOnlyDirectiveConfigNumber.Contains(CurrentConfigNumber)) ruleList += ",\r\n\t\t\t\t\t\t\t \"allowedPushOperations\" : \"CreateOnly\"";
                                 ruleList += "\r\n\t\t\t\t\t\t }";
 
@@ -586,7 +586,7 @@ namespace UnicorntoCLIConverter
             if (Mode == "P") configFileData = txtConfig.Text;
             else configFileData = File.ReadAllText(filePath);
 
-            ruleList = string.Empty;            
+            ruleList = string.Empty;
 
             if (configFileData.Contains("<!--")) CommentsPresent = true;
 
@@ -602,7 +602,7 @@ namespace UnicorntoCLIConverter
             if (CommentsPresent) ExtractCommentedLineNumbers();
 
             string convertedLine = string.Empty;
-            CurrentConfigNumber = 0;            
+            CurrentConfigNumber = 0;
 
             for (intLineNumTracker = configurations.StartLineIndex; intLineNumTracker <= configurations.EndLineIndex; intLineNumTracker++)
             {
@@ -698,7 +698,7 @@ namespace UnicorntoCLIConverter
         }
         private void btnPreview_Click(object sender, EventArgs e)
         {
-            if (string.IsNullOrWhiteSpace(txtConfig.Text)) return; 
+            if (string.IsNullOrWhiteSpace(txtConfig.Text)) return;
             CommentedLines = new List<int>();
             CreateOnlyDirectiveConfigNumber = new List<int>();
 
@@ -829,6 +829,14 @@ namespace UnicorntoCLIConverter
         private void txtJson_TextChanged(object sender, EventArgs e)
         {
 
+        }
+
+        private void button3_Click(object sender, EventArgs e)
+        {
+            var ext = new List<string> { "module.json" };
+            var configFiles = Directory
+                .EnumerateFiles(txtSelectedPath.Text, "*.module.json", SearchOption.AllDirectories)
+                .Where(s => ext.Contains(Path.GetExtension(s).TrimStart('.').ToLowerInvariant()));
         }
     }
 }
