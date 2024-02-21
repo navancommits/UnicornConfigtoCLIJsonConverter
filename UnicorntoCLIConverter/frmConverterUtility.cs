@@ -57,11 +57,15 @@ namespace UnicorntoCLIConverter
         private int intFileIndex = 0;
         private string FilePaths = string.Empty;
         private List<int> CommentedLines;
+        private List<int> CreateOnlyDirectiveConfigNumber;
         private string Mode;
         private string ConfigFileType = string.Empty;
         private string includeDomainName = string.Empty;
         private string includePattern = string.Empty;
         private bool CommentsPresent;
+        private int CurrentConfigNumber = 0;
+        bool CreateOnlyDirective = false;
+        int RunningConfigNumber = 0;
 
         public frmConverterUtility()
         {
@@ -127,6 +131,8 @@ namespace UnicorntoCLIConverter
 
                 }
 
+                if (line.ToLowerInvariant().Contains("newitemonlyevaluator")) CreateOnlyDirectiveConfigNumber.Add(configurationNumber);
+
                 if (line.ToLowerInvariant().Contains("</sitecore>")) break; //safety net for next line
 
                 if (line.ToLowerInvariant().Contains("</configuration>"))
@@ -134,6 +140,7 @@ namespace UnicorntoCLIConverter
                     configuration.EndLineIndex = intLineNumTrackerIndex;
                     configuration.ConfigurationNumber = configurationNumber;
                     ConfigurationList.Add(configuration);
+                    CreateOnlyDirective = false;
 
                 }
 
@@ -338,7 +345,7 @@ namespace UnicorntoCLIConverter
                 convertedLine += "\r\t\t\t{";
 
                 convertedLine += "\r\t\t\t\t \"name\" : " + includeModuleName + ",";
-                convertedLine += "\r\t\t\t\t \"path\" : " + includeModulePath + ",";
+                convertedLine += "\r\t\t\t\t \"path\" : " + includeModulePath + ",";                
                 convertedLine += "\r\t\t\t\t \"database\" : " + includeModuleDB;
 
                 var rules = string.Empty;
@@ -350,14 +357,19 @@ namespace UnicorntoCLIConverter
                     {
                         convertedLine += string.Empty;
                         excludesPresent = false;
-                    }
+                        if (Right(convertedLine, 1) != ",") convertedLine += ",";
+                        if (CreateOnlyDirectiveConfigNumber.Contains(CurrentConfigNumber)) convertedLine += "\r\t\t\t\t \"allowedPushOperations\" : \"CreateOnly\"";
+                    }    
                     else
                     {
-                        convertedLine += ",";
                         convertedLine += rules;
-                        //convertedLine += ",";
-                        excludesPresent = true;
                     }
+                }
+                else
+                {
+                    //just include
+                    //if (Right(convertedLine, 1) != ",") convertedLine += ",";
+                    if (CreateOnlyDirectiveConfigNumber.Contains(CurrentConfigNumber)) convertedLine += ",\r\t\t\t\t \"allowedPushOperations\" : \"CreateOnly\"";
                 }
 
                 if (!string.IsNullOrWhiteSpace(ruleList)) convertedLine += ruleList;
@@ -373,11 +385,16 @@ namespace UnicorntoCLIConverter
                 }
                 else
                 {
-                    convertedLine += ",";
+                    if (Right(convertedLine, 1) != ",") convertedLine += ","; 
                 }
             }
 
             return convertedLine;
+        }
+
+        public static string Right(string original, int numberCharacters)
+        {
+            return original.Substring(original.Length - numberCharacters);
         }
 
         private void ExtractCommentedLineNumbers()
@@ -417,10 +434,13 @@ namespace UnicorntoCLIConverter
 
                     if (currline.ToLowerInvariant().Contains("exclude") && currline.ToLowerInvariant().Contains("children=\"true\""))
                     {
-                        convertedlines = "\r\t\t\t\t \"scope\" : \"SingleItem\"";
+                        if (currline.ToLowerInvariant().Contains("/>")) return ",\r\t\t\t\t \"scope\" : \"SingleItem\"";
+
                         var nextline = lstConfig[intLineNumTracker + 1];
-                        //if (!nextline.ToLowerInvariant().Contains("except")) return convertedlines;
-                        if (CommentsPresent) if (!CommentedLines.Contains(intLineNumTracker + 1)) if (!nextline.ToLowerInvariant().Contains("except")) return convertedlines;//uncommented since without this scope is not added when exclude has only one except with children=true - xxxx.Feature.Serialization.config.
+                        if (!CommentsPresent) 
+                            { if (!nextline.ToLowerInvariant().Contains("except")) return convertedlines; }
+                        else 
+                            { if (!CommentedLines.Contains(intLineNumTracker + 1)) if (!nextline.ToLowerInvariant().Contains("except")) return convertedlines; }//uncommented since without this scope is not added when exclude has only one except with children=true - xxxx.Feature.Serialization.config.
 
                     }
 
@@ -430,7 +450,7 @@ namespace UnicorntoCLIConverter
                         //these must be serialized too
                         if (string.IsNullOrWhiteSpace(ruleList))
                         {
-                            ruleList += ",\r\t\t\t\t \"rules\": [";
+                            ruleList += "\r\t\t\t\t \"rules\": [";
                         }
 
                         do
@@ -449,6 +469,8 @@ namespace UnicorntoCLIConverter
                                 { ruleList += "\r\t\t\t\t\t\t\t \"scope\" : \"SingleItem\","; }
 
                                 ruleList += "\r\t\t\t\t\t\t\t \"path\" : " + extractChildtoInclude;
+                                
+                                if (CreateOnlyDirectiveConfigNumber.Contains(CurrentConfigNumber)) ruleList += ",\r\t\t\t\t\t\t\t \"allowedPushOperations\" : \"CreateOnly\"";
                                 ruleList += "\r\t\t\t\t\t\t }";
 
                                 // if (lstConfig[intLineNumTracker + 1].Trim() != "</exclude>" && !RulesListed)
@@ -558,7 +580,7 @@ namespace UnicorntoCLIConverter
             if (Mode == "P") configFileData = txtConfig.Text;
             else configFileData = File.ReadAllText(filePath);
 
-            ruleList = string.Empty;
+            ruleList = string.Empty;            
 
             if (configFileData.Contains("<!--")) CommentsPresent = true;
 
@@ -574,15 +596,16 @@ namespace UnicorntoCLIConverter
             if (CommentsPresent) ExtractCommentedLineNumbers();
 
             string convertedLine = string.Empty;
-            int CurrentConfigNumber = 0;
+            CurrentConfigNumber = 0;            
 
             for (intLineNumTracker = configurations.StartLineIndex; intLineNumTracker <= configurations.EndLineIndex; intLineNumTracker++)
             {
                 //if (!CommentedLines.Contains(intLineNumTracker))
                 //{
-
+                RunningConfigNumber = 0;
                 foreach (var config in ConfigurationList)
                 {
+                    RunningConfigNumber += 1;
                     if (intLineNumTracker == config.StartLineIndex)
                     {
                         var line = lstConfig[intLineNumTracker];
@@ -669,7 +692,9 @@ namespace UnicorntoCLIConverter
         }
         private void btnPreview_Click(object sender, EventArgs e)
         {
-            if (string.IsNullOrWhiteSpace(txtConfig.Text)) return;
+            if (string.IsNullOrWhiteSpace(txtConfig.Text)) return; 
+            CommentedLines = new List<int>();
+
             Mode = "P";
             txtJson.Text = ConverttoCLIModuleJson();
         }
@@ -694,6 +719,7 @@ namespace UnicorntoCLIConverter
 
         private void button2_Click(object sender, EventArgs e)
         {
+            CreateOnlyDirectiveConfigNumber = new List<int>();
             if (string.IsNullOrWhiteSpace(txtSelectedPath.Text)) return;
             CommentedLines = new List<int>();
             Mode = "B";
