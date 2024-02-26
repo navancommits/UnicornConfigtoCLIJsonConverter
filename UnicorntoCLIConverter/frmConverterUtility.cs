@@ -68,6 +68,7 @@ namespace UnicorntoCLIConverter
         int RunningConfigNumber = 0;
         string SectionNamePrefix = string.Empty;
         string ModuleNametoReplace = string.Empty;
+        List<string> DataStorePath;
 
         public frmConverterUtility()
         {
@@ -101,6 +102,7 @@ namespace UnicorntoCLIConverter
             ExceptList = new List<Except>();
             ExcludeList = new List<Exclude>();
             ConfigurationList = new List<Configuration>();
+            DataStorePath = new List<string>();
 
             string strConfigText = configData;
             string[] lstConfig = strConfigText.Split(new Char[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
@@ -120,6 +122,16 @@ namespace UnicorntoCLIConverter
                 if (line.ToLowerInvariant().Contains("</configurations>"))
                 {
                     configurations.EndLineIndex = intLineNumTrackerIndex;
+                }
+
+                if (line.ToLowerInvariant().Contains("<targetdatastore "))
+                {
+                    var physicalpath=ExtractValueBetweenQuotes(line, "physicalRootPath=");
+                    int lastindex=physicalpath.ToLowerInvariant().LastIndexOf("\\serialization\\");
+
+                    //var path=physicalpath.Substring(lastindex + 13, physicalpath.Length - lastindex);
+                    var path = (Right(physicalpath, physicalpath.Length - lastindex-15).Replace("\"",string.Empty)).Replace("\\","/");
+                    DataStorePath.Add(path);
                 }
 
                 if (line.ToLowerInvariant().Contains("<configuration ") && line.ToLowerInvariant().Contains("name"))
@@ -343,8 +355,8 @@ namespace UnicorntoCLIConverter
             if (currline.ToLowerInvariant().Contains("include") && currline.ToLowerInvariant().Contains("name=") &&
                 currline.ToLowerInvariant().Contains("database=") && currline.ToLowerInvariant().Contains("path="))
             {
-                includeModuleName = ExtractValueBetweenQuotes(currline, "name=");
-                includeModuleName = includeModuleName.Replace(includeModuleName.Replace("\"", string.Empty), ConfigurationList[CurrentConfigNumber - 1].ModuleName.Replace("\"", string.Empty) + "-" + includeModuleName.Replace("\"", string.Empty)).Replace(".", "-");
+                includeModuleName = "\"" + DataStorePath[CurrentConfigNumber-1] + "/" + ExtractValueBetweenQuotes(currline, "name=").Replace("\"",string.Empty) + "\"";
+                //includeModuleName = includeModuleName.Replace(includeModuleName.Replace("\"", string.Empty), ConfigurationList[CurrentConfigNumber - 1].ModuleName.Replace("\"", string.Empty) + "-" + includeModuleName.Replace("\"", string.Empty)).Replace(".", "-");
                 includeModulePath = ExtractValueBetweenQuotes(currline, "path=");
                 includeModuleDB = ExtractValueBetweenQuotes(currline, "database=");
 
@@ -362,8 +374,8 @@ namespace UnicorntoCLIConverter
                     if (string.IsNullOrWhiteSpace(rules))
                     {
                         convertedLine += string.Empty;
-                        excludesPresent = false;
-                        if (Right(convertedLine, 1) != ",") convertedLine += ",";
+                        //excludesPresent = false;
+                        //if (Right(convertedLine, 1) != ",") convertedLine += ",";
                         if (CreateOnlyDirectiveConfigNumber.Contains(CurrentConfigNumber)) convertedLine += "\r\n\t\t\t\t \"allowedPushOperations\" : \"CreateOnly\"";
                     }
                     else
@@ -378,7 +390,7 @@ namespace UnicorntoCLIConverter
                     if (CreateOnlyDirectiveConfigNumber.Contains(CurrentConfigNumber)) convertedLine += ",\r\n\t\t\t\t \"allowedPushOperations\" : \"CreateOnly\"";
                 }
 
-                if (!string.IsNullOrWhiteSpace(ruleList)) convertedLine += ruleList;
+                if (!string.IsNullOrWhiteSpace(ruleList)) if (Right(convertedLine, 1) != ",") convertedLine += "," + ruleList;
                 ruleList = string.Empty;
 
                 convertedLine += "\r\n\t\t\t}";
@@ -440,7 +452,17 @@ namespace UnicorntoCLIConverter
 
                     if (currline.ToLowerInvariant().Contains("exclude") && currline.ToLowerInvariant().Contains("children=\"true\""))
                     {
-                        if (currline.ToLowerInvariant().Contains("/>")) return ",\r\n\t\t\t\t \"scope\" : \"SingleItem\"";
+                        if (currline.ToLowerInvariant().Contains("/>"))
+                        {
+                            var tmprules= ",\r\n\t\t\t\t \"rules\": [";
+                            tmprules += "\r\n\t\t\t\t\t\t {";
+                            tmprules += "\r\n\t\t\t\t\t\t\t \"scope\" : \"ignored\",";
+                            tmprules += "\r\n\t\t\t\t\t\t\t \"path\" : \"*\"";
+                            tmprules += "\r\n\t\t\t\t\t\t }";
+                            tmprules += "\r\n\t\t\t\t ]";
+
+                            return tmprules;
+                        }
 
                         var nextline = lstConfig[intLineNumTracker + 1];
                         if (!CommentsPresent)
@@ -469,12 +491,15 @@ namespace UnicorntoCLIConverter
 
                                 ruleList += "\r\n\t\t\t\t\t\t {";
 
-                                if (currline.ToLowerInvariant().Contains("except") && currline.ToLowerInvariant().Contains("includechildren=\"true\""))
-                                { ruleList += "\r\n\t\t\t\t\t\t\t \"scope\" : \"ItemandDescendants\","; }
-                                else
-                                { ruleList += "\r\n\t\t\t\t\t\t\t \"scope\" : \"SingleItem\","; }
+                                string rulestring = string.Empty;
 
-                                ruleList += "\r\n\t\t\t\t\t\t\t \"path\" : " + extractChildtoInclude;
+                                if (currline.ToLowerInvariant().Contains("except"))
+                                { rulestring = "\r\n\t\t\t\t\t\t\t \"scope\" : \"ItemandDescendants\","; }
+
+                                if (currline.ToLowerInvariant().Contains("except") && currline.ToLowerInvariant().Contains("includechildren=\"false\""))
+                                { rulestring = "\r\n\t\t\t\t\t\t\t \"scope\" : \"SingleItem\","; }
+
+                                ruleList += rulestring + "\r\n\t\t\t\t\t\t\t \"path\" : " + extractChildtoInclude;
 
                                 if (CreateOnlyDirectiveConfigNumber.Contains(CurrentConfigNumber)) ruleList += ",\r\n\t\t\t\t\t\t\t \"allowedPushOperations\" : \"CreateOnly\"";
                                 ruleList += "\r\n\t\t\t\t\t\t }";
