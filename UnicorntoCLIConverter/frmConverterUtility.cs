@@ -707,7 +707,13 @@ namespace UnicorntoCLIConverter
 
                 if (ConfigurationList.Count > 1)
                 {
-                    jsonFileFullPath = Path.GetDirectoryName(fileFullPath) + "\\" + config.ModuleName.Replace("\"", string.Empty) + ".module.json";
+                    var parentdir = Path.GetDirectoryName(fileFullPath);
+                    if (chkMoveJsontoserfolderloc.Checked)
+                    {
+                        int codeloc = parentdir.IndexOf("code");//assumption that there is a code dir
+                        if (codeloc > 0) parentdir = parentdir.Substring(0, codeloc - 1);
+                    }
+                    jsonFileFullPath = parentdir + "\\" + config.ModuleName.Replace("\"", string.Empty) + ".module.json";
                 }
                 else
                 {
@@ -716,7 +722,7 @@ namespace UnicorntoCLIConverter
                     if (chkMoveJsontoserfolderloc.Checked)
                     {
                         int codeloc = parentdir.IndexOf("code");//assumption that there is a code dir
-                        parentdir = parentdir.Substring(0,codeloc);
+                        if (codeloc>0) parentdir = parentdir.Substring(0,codeloc-1);
                     }
                     jsonFileFullPath = parentdir + "\\" + fileName + ".module.json";
                 }
