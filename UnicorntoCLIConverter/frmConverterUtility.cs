@@ -712,7 +712,13 @@ namespace UnicorntoCLIConverter
                 else
                 {
                     var fileName = Path.GetFileNameWithoutExtension(fileFullPath);
-                    jsonFileFullPath = Path.GetDirectoryName(fileFullPath) + "\\" + fileName + ".module.json";
+                    var parentdir = Path.GetDirectoryName(fileFullPath);
+                    if (chkMoveJsontoserfolderloc.Checked)
+                    {
+                        int codeloc = parentdir.IndexOf("code");//assumption that there is a code dir
+                        parentdir = parentdir.Substring(0,codeloc);
+                    }
+                    jsonFileFullPath = parentdir + "\\" + fileName + ".module.json";
                 }
 
                 File.WriteAllText(jsonFileFullPath, concatenatedLines);
