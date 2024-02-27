@@ -130,8 +130,12 @@ namespace UnicorntoCLIConverter
                     int lastindex=physicalpath.ToLowerInvariant().LastIndexOf("\\serialization\\");
 
                     //var path=physicalpath.Substring(lastindex + 13, physicalpath.Length - lastindex);
-                    var path = (Right(physicalpath, physicalpath.Length - lastindex-15).Replace("\"",string.Empty)).Replace("\\","/");
-                    DataStorePath.Add(path);
+
+                    if (lastindex > -1)
+                    {
+                        var path = (Right(physicalpath, physicalpath.Length - lastindex - 15).Replace("\"", string.Empty)).Replace("\\", "/");
+                        DataStorePath.Add(path);
+                    }
                 }
 
                 if (line.ToLowerInvariant().Contains("<configuration ") && line.ToLowerInvariant().Contains("name"))
@@ -355,7 +359,14 @@ namespace UnicorntoCLIConverter
             if (currline.ToLowerInvariant().Contains("include") && currline.ToLowerInvariant().Contains("name=") &&
                 currline.ToLowerInvariant().Contains("database=") && currline.ToLowerInvariant().Contains("path="))
             {
-                includeModuleName = "\"" + DataStorePath[CurrentConfigNumber-1] + "/" + ExtractValueBetweenQuotes(currline, "name=").Replace("\"",string.Empty) + "\"";
+                if (DataStorePath.Any())
+                {
+                    includeModuleName = "\"" + DataStorePath[CurrentConfigNumber - 1] + "/" + ExtractValueBetweenQuotes(currline, "name=").Replace("\"", string.Empty) + "\"";
+                }
+                else
+                {
+                    includeModuleName = "\"" + ExtractValueBetweenQuotes(currline, "name=").Replace("\"", string.Empty) + "\"";
+                }
                 //includeModuleName = includeModuleName.Replace(includeModuleName.Replace("\"", string.Empty), ConfigurationList[CurrentConfigNumber - 1].ModuleName.Replace("\"", string.Empty) + "-" + includeModuleName.Replace("\"", string.Empty)).Replace(".", "-");
                 includeModulePath = ExtractValueBetweenQuotes(currline, "path=");
                 includeModuleDB = ExtractValueBetweenQuotes(currline, "database=");
