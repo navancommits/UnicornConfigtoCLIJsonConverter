@@ -491,13 +491,32 @@ namespace UnicorntoCLIConverter
                         {
                             ruleList += "\r\n\t\t\t\t \"rules\": [";
                         }
+                        int totalchildrenCount = 1;
+                        int tmpLineTracker = intLineNumTracker;
+                        do
+                        {
+                            if (!IsBlankLine(tmpLineTracker)) currline = lstConfig[tmpLineTracker];
 
+                            if (currline.ToLowerInvariant().Contains("except ") && currline.ToLowerInvariant().Contains("name"))
+                            {
+                                var extractChildtoInclude = ExtractValueBetweenQuotes(currline, "name=", true);
+
+                                int tmpChildrenCount = extractChildtoInclude.Split('/').Length-1;
+                                if ((tmpChildrenCount > 1) && tmpChildrenCount > totalchildrenCount) totalchildrenCount = tmpChildrenCount;
+                            }
+                            //}
+
+                            tmpLineTracker += 1;
+
+                        } while (lstConfig[tmpLineTracker].Trim() != "</exclude>");
+
+                        int currentChildCount = 0;
                         do
                         {
                             if (!IsBlankLine(intLineNumTracker)) currline = lstConfig[intLineNumTracker];
 
                             if (currline.ToLowerInvariant().Contains("except ") && currline.ToLowerInvariant().Contains("name"))
-                            {
+                            {                                
                                 var extractChildtoInclude = ExtractValueBetweenQuotes(currline, "name=", true);
 
                                 ruleList += "\r\n\t\t\t\t\t\t {";
@@ -508,7 +527,16 @@ namespace UnicorntoCLIConverter
                                 { rulestring = "\r\n\t\t\t\t\t\t\t \"scope\" : \"ItemandDescendants\","; }
 
                                 if (currline.ToLowerInvariant().Contains("except") && currline.ToLowerInvariant().Contains("includechildren=\"false\""))
-                                { rulestring = "\r\n\t\t\t\t\t\t\t \"scope\" : \"SingleItem\","; }
+                                {
+                                    if (extractChildtoInclude.Split('/').Length-1 < totalchildrenCount)
+                                    {
+                                        rulestring = "\r\n\t\t\t\t\t\t\t \"scope\" : \"ItemandDescendants\",";
+                                    }
+                                    else
+                                    {
+                                        rulestring = "\r\n\t\t\t\t\t\t\t \"scope\" : \"SingleItem\",";
+                                    }
+                                }
 
                                 ruleList += rulestring + "\r\n\t\t\t\t\t\t\t \"path\" : " + extractChildtoInclude;
 
