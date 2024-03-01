@@ -27,6 +27,7 @@ namespace UnicorntoCLIConverter
         private int intlastInclude = 0;
         private bool RulesListed = false;
         private int intCurrentInclude = 0;
+        private int intCurrentRoleInclude = 0;
         private int intIncludeCount = 0;
         private int intRuleCount = 0;
         private List<Predicate> PredicateList;
@@ -69,6 +70,9 @@ namespace UnicorntoCLIConverter
         string SectionNamePrefix = string.Empty;
         string ModuleNametoReplace = string.Empty;
         List<string> DataStorePath;
+        string roleList= string.Empty;
+        int intRoleIncludeCount = 0;
+        int intRunningPredicateNumber = 0;
 
         public frmConverterUtility()
         {
@@ -141,6 +145,7 @@ namespace UnicorntoCLIConverter
                 if (line.ToLowerInvariant().Contains("<configuration ") && line.ToLowerInvariant().Contains("name"))
                 {
                     configurationNumber += 1;
+                    predicateNumber = 0;
                     configuration = new Configuration
                     {
                         StartLineIndex = intLineNumTrackerIndex,
@@ -165,16 +170,26 @@ namespace UnicorntoCLIConverter
 
                 }
 
-                if (line.ToLowerInvariant().Contains("<predicate"))
+                if (line.ToLowerInvariant().Contains("<predicate") || line.ToLowerInvariant().Contains("<rolepredicate"))
                 {
                     predicateNumber += 1;
                     predicate = new Predicate
                     {
                         StartLineIndex = intLineNumTrackerIndex
                     };
+
+                    if (line.ToLowerInvariant().Contains("<predicate"))
+                    {
+                        predicate.PredicateType = "include";
+                    }
+                    else
+                    {
+                        predicate.PredicateType = "role";
+                    }
+                     
                 }
 
-                if (line.ToLowerInvariant().Contains("</predicate>"))
+                if (line.ToLowerInvariant().Contains("</predicate>") || line.ToLowerInvariant().Contains("</rolepredicate"))
                 {
                     predicate.EndLineIndex = intLineNumTrackerIndex;
                     predicate.PredicateNumber = predicateNumber;
@@ -320,33 +335,56 @@ namespace UnicorntoCLIConverter
             intIncludeCount = includeCount;
         }
 
+        private void CountRoleInclude(int predicateNumber)
+        {
+            int includeCount = 0;
+
+            for (int intCounter = PredicateList[predicateNumber - 1].StartLineIndex; intCounter <= PredicateList[predicateNumber - 1].EndLineIndex; intCounter++)
+            {
+                string currline = lstConfig[intCounter];
+
+                if (currline.ToLowerInvariant().Contains("<include")) includeCount += 1;
+
+            }
+
+            intRoleIncludeCount = includeCount;
+        }
+
         private string GetInfoforRoleInclude()
         {
-            string convertedLine = string.Empty;
-            string currline = lstConfig[intLineNumTracker];
+            string convertedLine = string.Empty;            
 
-            if (currline.ToLowerInvariant().Contains("include") && currline.ToLowerInvariant().Contains("domain="))
+            do
             {
-                includeDomainName = ExtractValueBetweenQuotes(currline, "domain=");
-                includePattern = ExtractValueBetweenQuotes(currline, "pattern=");
-
-                convertedLine += "\r\n\t\t\t{";
-
-                convertedLine += "\r\n\t\t\t\t \"domain\" : " + includeDomainName + ",";
-                convertedLine += "\r\n\t\t\t\t \"pattern\" : " + includePattern;
-                convertedLine += "\r\n\t\t\t}";
-
-                intCurrentInclude += 1;
-
-                if (intCurrentInclude >= intIncludeCount)
+                string currline = lstConfig[intLineNumTracker];
+                if (currline.ToLowerInvariant().Contains("include") && currline.ToLowerInvariant().Contains("domain="))
                 {
-                    convertedLine += "";
+                    includeDomainName = ExtractValueBetweenQuotes(currline, "domain=");
+                    includePattern = ExtractValueBetweenQuotes(currline, "pattern=");
+
+                    convertedLine += "\r\n\t\t\t\t{";
+
+                    convertedLine += "\r\n\t\t\t\t\t\t \"domain\" : " + includeDomainName + ",";
+                    convertedLine += "\r\n\t\t\t\t\t\t \"pattern\" : " + includePattern;
+                    convertedLine += "\r\n\t\t\t\t}";
+
+                    intCurrentRoleInclude += 1;
+
+                    if (intCurrentRoleInclude >= intRoleIncludeCount)
+                    {
+                        convertedLine += "";
+                    }
+                    else
+                    {
+                        convertedLine += ",";
+                    }
                 }
-                else
-                {
-                    convertedLine += ",";
-                }
-            }
+
+                intLineNumTracker += 1;
+
+            } while (lstConfig[intLineNumTracker].ToLowerInvariant().Trim() != "</rolepredicate>");
+
+            
 
             return convertedLine;
         }
@@ -416,7 +454,7 @@ namespace UnicorntoCLIConverter
                 {
                     if (Right(convertedLine, 1) != ",") convertedLine += ",";
                 }
-            }
+            }            
 
             return convertedLine;
         }
@@ -688,21 +726,38 @@ namespace UnicorntoCLIConverter
 
                 foreach (var predicate in PredicateList)
                 {
-
+                   
                     if (intLineNumTracker >= predicate.StartLineIndex && intLineNumTracker <= predicate.EndLineIndex)
                     {
                         //intCurrentInclude = 0;
 
+                        
                         if (intLineNumTracker == predicate.StartLineIndex)
                         {
-                            intCurrentInclude = 0;
-                            CountInclude(CurrentConfigNumber);
-                            convertedLine += "\r\n\t\t" + "\"includes\": [";
+                            if (predicate.PredicateType == "include")
+                            {
+                                intCurrentInclude = 0;
+                                CountInclude(predicate.PredicateNumber);
+                            
+                                convertedLine += "\r\n\t\t" + "\"includes\": [";
+                            }   
+                            else
+                            {
+                                intCurrentRoleInclude = 0;
+                                CountRoleInclude(predicate.PredicateNumber);
+                            }
                         }
 
-                        convertedLine += GetInfoforInclude();
+                        if (predicate.PredicateType == "include")
+                        {
+                            convertedLine += GetInfoforInclude();
+                        }
+                        else
+                        {
+                            roleList = "\r\n\t" + "\r\n\t\"roles\": \r\n\t\t [" + GetInfoforRoleInclude() + "\r\n\t\t]";
+                        }
 
-                        if (intLineNumTracker == predicate.EndLineIndex) convertedLine += "\r\n\t\t" + "]";
+                        if (predicate.PredicateType=="include") if (intLineNumTracker == predicate.EndLineIndex) convertedLine += "\r\n\t\t" + "]";
                     }
 
                 }
@@ -715,7 +770,16 @@ namespace UnicorntoCLIConverter
 
                         var line = lstConfig[intLineNumTracker];
 
-                        if (intLineNumTracker == config.EndLineIndex) convertedLine += itemsEndLine + endLine;
+                        if (intLineNumTracker == config.EndLineIndex)
+                        {
+                            convertedLine += itemsEndLine;
+                            if (!string.IsNullOrWhiteSpace(roleList)) convertedLine += "," + roleList;
+
+                            //if (!string.IsNullOrWhiteSpace(roleList)) 
+                            //    convertedLine += endLine;
+                            //else
+                            convertedLine += endLine;
+                        }   
 
                         if (Mode == "B")
                             SaveFile(convertedLine, config, filePath);//Save one file at a time
@@ -734,6 +798,8 @@ namespace UnicorntoCLIConverter
                 //}
             }
 
+            PredicateList = new List<Predicate>();//reset
+            roleList = string.Empty;
             return convertedLine;
         }
 
@@ -843,6 +909,7 @@ namespace UnicorntoCLIConverter
             internal int StartLineIndex { get; set; }
             internal int EndLineIndex { get; set; }
             internal int PredicateNumber { get; set; }
+            internal string PredicateType { get; set; }
         }
 
         internal class FileDetails
