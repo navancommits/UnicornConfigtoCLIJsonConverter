@@ -71,6 +71,7 @@ namespace UnicorntoCLIConverter
         string ModuleNametoReplace = string.Empty;
         List<string> DataStorePath;
         string roleList= string.Empty;
+        string userList = string.Empty;
         int intRoleIncludeCount = 0;
         int intRunningPredicateNumber = 0;
 
@@ -170,7 +171,7 @@ namespace UnicorntoCLIConverter
 
                 }
 
-                if (line.ToLowerInvariant().Contains("<predicate") || line.ToLowerInvariant().Contains("<rolepredicate"))
+                if (line.ToLowerInvariant().Contains("<predicate") || line.ToLowerInvariant().Contains("<rolepredicate") || line.ToLowerInvariant().Contains("<userpredicate"))
                 {
                     predicateNumber += 1;
                     predicate = new Predicate
@@ -182,14 +183,17 @@ namespace UnicorntoCLIConverter
                     {
                         predicate.PredicateType = "include";
                     }
-                    else
+                    else if(line.ToLowerInvariant().Contains("<rolepredicate"))
                     {
                         predicate.PredicateType = "role";
                     }
-                     
+                    else if (line.ToLowerInvariant().Contains("<userpredicate"))
+                    {
+                        predicate.PredicateType = "user";
+                    }
                 }
 
-                if (line.ToLowerInvariant().Contains("</predicate>") || line.ToLowerInvariant().Contains("</rolepredicate"))
+                if (line.ToLowerInvariant().Contains("</predicate>") || line.ToLowerInvariant().Contains("</rolepredicate") || line.ToLowerInvariant().Contains("</userpredicate"))
                 {
                     predicate.EndLineIndex = intLineNumTrackerIndex;
                     predicate.PredicateNumber = predicateNumber;
@@ -350,7 +354,7 @@ namespace UnicorntoCLIConverter
             intRoleIncludeCount = includeCount;
         }
 
-        private string GetInfoforRoleInclude()
+        private string GetInfoforRoleInclude(string endTag)
         {
             string convertedLine = string.Empty;            
 
@@ -378,11 +382,13 @@ namespace UnicorntoCLIConverter
                     {
                         convertedLine += ",";
                     }
+
+                    if (CommentedLines.Contains(intLineNumTracker)) { convertedLine = "/*" + convertedLine + "*/"; }
                 }
 
                 intLineNumTracker += 1;
 
-            } while (lstConfig[intLineNumTracker].ToLowerInvariant().Trim() != "</rolepredicate>");
+            } while (lstConfig[intLineNumTracker].ToLowerInvariant().Trim() != endTag);
 
             
 
@@ -724,6 +730,10 @@ namespace UnicorntoCLIConverter
 
                 }
 
+                var commentedline = lstConfig[intLineNumTracker];
+                if (commentedline.Trim().StartsWith("<!--")) convertedLine += "/*";
+                if (commentedline.Trim().EndsWith("-->")) convertedLine += "*/";
+
                 foreach (var predicate in PredicateList)
                 {
                    
@@ -752,9 +762,13 @@ namespace UnicorntoCLIConverter
                         {
                             convertedLine += GetInfoforInclude();
                         }
-                        else
+                        else if(predicate.PredicateType == "role")
                         {
-                            roleList = "\r\n\t" + "\r\n\t\"roles\": \r\n\t\t [" + GetInfoforRoleInclude() + "\r\n\t\t]";
+                            roleList = "\r\n\t" + "\r\n\t\"roles\": \r\n\t\t [" + GetInfoforRoleInclude("</rolepredicate>") + "\r\n\t\t]";
+                        }
+                        else if (predicate.PredicateType == "user")
+                        {
+                            userList = "\r\n\t" + "\r\n\t\"users\": \r\n\t\t [" + GetInfoforRoleInclude("</userpredicate>") + "\r\n\t\t]";
                         }
 
                         if (predicate.PredicateType=="include") if (intLineNumTracker == predicate.EndLineIndex) convertedLine += "\r\n\t\t" + "]";
@@ -774,6 +788,8 @@ namespace UnicorntoCLIConverter
                         {
                             convertedLine += itemsEndLine;
                             if (!string.IsNullOrWhiteSpace(roleList)) convertedLine += "," + roleList;
+
+                            if (!string.IsNullOrWhiteSpace(userList)) convertedLine += "," + userList;
 
                             //if (!string.IsNullOrWhiteSpace(roleList)) 
                             //    convertedLine += endLine;
@@ -800,6 +816,7 @@ namespace UnicorntoCLIConverter
 
             PredicateList = new List<Predicate>();//reset
             roleList = string.Empty;
+            userList = string.Empty;
             return convertedLine;
         }
 
