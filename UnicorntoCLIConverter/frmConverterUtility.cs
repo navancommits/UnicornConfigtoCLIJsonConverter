@@ -74,6 +74,9 @@ namespace UnicorntoCLIConverter
         string userList = string.Empty;
         int intRoleIncludeCount = 0;
         int intRunningPredicateNumber = 0;
+        List<string> lstFoundationBase = new List<string>();
+        List<string> lstFeatureBase = new List<string>();
+        List<string> lstProjectBase = new List<string>();
 
         public frmConverterUtility()
         {
@@ -711,6 +714,7 @@ namespace UnicorntoCLIConverter
 
             string convertedLine = string.Empty;
             CurrentConfigNumber = 0;
+            string currline = string.Empty;
 
             for (intLineNumTracker = configurations.StartLineIndex; intLineNumTracker <= configurations.EndLineIndex; intLineNumTracker++)
             {
@@ -719,13 +723,98 @@ namespace UnicorntoCLIConverter
                 RunningConfigNumber = 0;
                 foreach (var config in ConfigurationList)
                 {
-                    RunningConfigNumber += 1;
-                    if (intLineNumTracker == config.StartLineIndex)
+                    if (filePath.Trim().ToLowerInvariant().EndsWith("unicorn.helix.config"))
                     {
-                        var line = lstConfig[intLineNumTracker];
+                        //extract separate info
+                        currline = lstConfig[intLineNumTracker];
+                        if (currline.ToLowerInvariant().Contains("name=\"Helix.Foundation\""))
+                        {
+                            //start do loop and add the include name values to foundation list
+                            do
+                            {
+                                if (!IsBlankLine(intLineNumTracker))
+                                {
 
-                        convertedLine = GetConfigurationLine(line, config.ConfigurationNumber);
-                        CurrentConfigNumber = config.ConfigurationNumber;//same as predicate number
+                                    currline = lstConfig[intLineNumTracker];
+                                    if (currline.ToLowerInvariant().Contains("<include"))
+                                    {
+                                        var intFirst = IndexofnthOccurence(currline, '"', 1);
+                                        var intSecond = IndexofnthOccurence(currline, '"', 2);
+
+                                        var intStringLen = intSecond - intFirst;
+                                        string modulename = currline.Substring(intFirst, intStringLen + 1);
+                                        lstFoundationBase.Add(modulename.Replace("\"",string.Empty));
+                                    }
+
+                                }
+
+                                intLineNumTracker += 1;
+
+                            } while (lstConfig[intLineNumTracker].Trim() != "</configuration>");
+                        }
+                        else if (currline.ToLowerInvariant().Contains("name=\"Helix.Feature\""))
+                        {
+                            //start do loop and add the include name values to feature list
+                            do
+                            {
+                                if (!IsBlankLine(intLineNumTracker))
+                                {
+
+                                    currline = lstConfig[intLineNumTracker];
+                                    if (currline.ToLowerInvariant().Contains("<include"))
+                                    {
+                                        var intFirst = IndexofnthOccurence(currline, '"', 1);
+                                        var intSecond = IndexofnthOccurence(currline, '"', 2);
+
+                                        var intStringLen = intSecond - intFirst;
+                                        string modulename = currline.Substring(intFirst, intStringLen + 1);
+                                        lstFeatureBase.Add(modulename.Replace("\"", string.Empty));
+                                    }
+
+                                }
+
+                                intLineNumTracker += 1;
+
+                            } while (lstConfig[intLineNumTracker].Trim() != "</configuration>");
+                        }
+                        else if (currline.ToLowerInvariant().Contains("name=\"Helix.Project\""))
+                        {
+                                //start do loop and add the include name values to foundation list
+                                do
+                                {
+                                    if (!IsBlankLine(intLineNumTracker))
+                                    {
+
+                                        currline = lstConfig[intLineNumTracker];
+                                        if (currline.ToLowerInvariant().Contains("<include"))
+                                        {
+                                            var intFirst = IndexofnthOccurence(currline, '"', 1);
+                                            var intSecond = IndexofnthOccurence(currline, '"', 2);
+
+                                            var intStringLen = intSecond - intFirst;
+                                            string modulename = currline.Substring(intFirst, intStringLen + 1);
+                                            lstProjectBase.Add(modulename.Replace("\"", string.Empty));
+                                        }
+
+                                    }
+
+                                    intLineNumTracker += 1;
+
+                                } while (lstConfig[intLineNumTracker].Trim() != "</configuration>");
+                        }
+                    }
+                    else
+                    {
+                        RunningConfigNumber += 1;
+                        if (intLineNumTracker == config.StartLineIndex)
+                        {
+                            var line = lstConfig[intLineNumTracker];
+
+                            convertedLine = GetConfigurationLine(line, config.ConfigurationNumber);
+                            CurrentConfigNumber = config.ConfigurationNumber;//same as predicate number
+                            convertedLine = GetConfigurationLine(line, config.ConfigurationNumber);
+                            CurrentConfigNumber = config.ConfigurationNumber;//same as predicate number
+                        }
                     }
 
                 }
@@ -820,6 +909,108 @@ namespace UnicorntoCLIConverter
             return convertedLine;
         }
 
+        private string  GetBaseJsonFile(string layerName,string moduleName,string baseString)
+        {
+            var concatenatedString = string.Empty;
+
+            concatenatedString += "{";
+            concatenatedString+=  "\r\n\t\"namespace\": \"" + layerName + "." + moduleName + "\",";
+
+            concatenatedString += "\r\n\t\t\"items\": {";
+            concatenatedString += "\r\n\t\t\t\"includes\": [";
+
+            concatenatedString += "\r\n\t\t\t\t\"{";
+            concatenatedString += "\r\n\t\t\t\t\t\"name\" : \"" + baseString + "\",";
+            concatenatedString += "\r\n\t\t\t\t\t\"path\" : \"/sitecore/" + layerName + "/" + moduleName + "\",";
+            concatenatedString += "\r\n\t\t\t\t\t\"database\" : \"master\"";
+
+            concatenatedString += "\r\n\t\t\t\t}";
+		    concatenatedString += "\r\n\t\t\t]";
+            concatenatedString += "\r\n\t\t}";
+            concatenatedString += "}";
+
+            return concatenatedString;
+        }
+
+        private void SaveBaseItemFile(string fileFullPath)
+        {
+            //in case of habitat, base files are specified in unicorn.helix.config since some projects might follow this pattern, better to check for unicorn.helix.config and do the needful
+            var parentdir = Path.GetDirectoryName(fileFullPath);
+
+            if (chkMoveJsontoserfolderloc.Checked)
+            {
+                int codeloc = parentdir.IndexOf("code");//assumption that there is a code dir
+                if (codeloc > 0)
+                {
+                    if (parentdir.ToLowerInvariant().Contains("\\foundation\\"))
+                    {
+                        parentdir = parentdir.Substring(0, codeloc - 1);
+                        if (Directory.Exists(parentdir + "\\serialization"))
+                        {
+                            //create the needed base module json files based on entries for each layer in unicorn.helix.config and save here in parentdir
+                            //foundation
+                            foreach (var item in lstFoundationBase)
+                            {
+                                int lastind = fileFullPath.LastIndexOf('\\');
+                                string modName = Right(fileFullPath, fileFullPath.Length - lastind);
+                                //Generate the file and save
+                                var genString = GetBaseJsonFile("Foundation", modName, item);
+
+                                var baseFilePath = parentdir + "\\Foundation." + modName + "." + item + ".module.json";
+
+                                File.WriteAllText(baseFilePath, genString);
+                            }
+                            
+                        }
+                    }
+                    else if (parentdir.ToLowerInvariant().Contains("\\feature\\"))
+                    {
+                        //same as foundation base
+                        parentdir = parentdir.Substring(0, codeloc - 1);
+                        if (Directory.Exists(parentdir + "\\serialization"))
+                        {
+                            //create the needed base module json files based on entries for each layer in unicorn.helix.config and save here in parentdir
+                            //foundation
+                            foreach (var item in lstFeatureBase)
+                            {
+                                int lastind = fileFullPath.LastIndexOf('\\');
+                                string modName = Right(fileFullPath, fileFullPath.Length - lastind);
+                                //Generate the file and save
+                                var genString = GetBaseJsonFile("Feature", modName, item);
+
+                                var baseFilePath = parentdir + "\\Feature." + modName + "." + item + ".module.json";
+
+                                File.WriteAllText(baseFilePath, genString);
+                            }
+
+                        }
+                    }
+                    else if (parentdir.ToLowerInvariant().Contains("\\project\\"))
+                    {
+                        //same as foundation base
+                        parentdir = parentdir.Substring(0, codeloc - 1);
+                        if (Directory.Exists(parentdir + "\\serialization"))
+                        {
+                            //create the needed base module json files based on entries for each layer in unicorn.helix.config and save here in parentdir
+                            //foundation
+                            foreach (var item in lstProjectBase)
+                            {
+                                int lastind = fileFullPath.LastIndexOf('\\');
+                                string modName = Right(fileFullPath, fileFullPath.Length - lastind);
+                                //Generate the file and save
+                                var genString = GetBaseJsonFile("Project", modName, item);
+
+                                var baseFilePath = parentdir + "\\Project." + modName + "." + item + ".module.json";
+
+                                File.WriteAllText(baseFilePath, genString);
+                            }
+
+                        }
+                    }
+                }
+            }
+        }
+
         private string SaveFile(string concatenatedLines, Configuration config, string fileFullPath)
         {
             if (!string.IsNullOrWhiteSpace(concatenatedLines))
@@ -906,6 +1097,8 @@ namespace UnicorntoCLIConverter
                 {
                     //ExtractCommentedLines(file);
                     configurationNumber = 0;
+                    //place to save corresponding base json file based on file path
+                    SaveBaseItemFile(file);
                     var convertedJsonString = ConverttoCLIModuleJson(file);
                     if (!string.IsNullOrWhiteSpace(convertedJsonString))
                     {
