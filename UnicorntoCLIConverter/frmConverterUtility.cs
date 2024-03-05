@@ -77,6 +77,8 @@ namespace UnicorntoCLIConverter
         List<string> lstFoundationBase = new List<string>();
         List<string> lstFeatureBase = new List<string>();
         List<string> lstProjectBase = new List<string>();
+        int ExcludeLineNumberStart = 0;
+        
 
         public frmConverterUtility()
         {
@@ -499,6 +501,65 @@ namespace UnicorntoCLIConverter
 
         }
 
+        private bool IsSingleItem()
+        {
+            string currline = string.Empty;
+            int tmpLineTracker = intLineNumTracker;
+            bool istheLast = true;
+
+            if (!IsBlankLine(tmpLineTracker)) currline = lstConfig[tmpLineTracker];
+
+            if (currline.ToLowerInvariant().Contains("except ") && currline.ToLowerInvariant().Contains("name"))
+            {
+                var extractChildtoCompare = ExtractValueBetweenQuotes(currline, "name=");
+                int SlashOccurences= extractChildtoCompare.Split('/').Length - 1;//int count = source.Split('/').Length - 1;
+                var splitChildtoCompare = extractChildtoCompare.Split('/');
+                string parenttoCompare = string.Empty;
+
+                if (splitChildtoCompare.Length > 0)
+                {
+                    parenttoCompare = splitChildtoCompare[0];
+                }
+                else
+                {
+                    parenttoCompare = extractChildtoCompare;
+                }
+
+                parenttoCompare = parenttoCompare.Replace("\"",string.Empty);
+                //take a child without slash in name and loop through all except within exclude list to find if there is a slash and then the path starts with this name, that means the parent has a child and so the parent must be marked with itemanddescendants then move to next child and do a similar loop until finding a child with slash
+                int tmpnewLineTracker = ExcludeLineNumberStart;
+                do
+                {
+                    if (tmpnewLineTracker != tmpLineTracker)
+                    {
+                        if (!IsBlankLine(tmpnewLineTracker))
+                        {
+                            string newcurrline = lstConfig[tmpnewLineTracker];
+                            var extracttmpChildtoCompare = ExtractValueBetweenQuotes(newcurrline, "name=");
+                            var tmpsplitChildtoCompare = extracttmpChildtoCompare.Replace("\"", string.Empty).Split('/');
+                            if (tmpsplitChildtoCompare.Length > 0)
+                            {
+                                if (tmpsplitChildtoCompare[0].Replace("\"", string.Empty) == parenttoCompare)
+                                {
+                                    if (SlashOccurences < extracttmpChildtoCompare.Replace("\"", string.Empty).Split('/').Length - 1)
+                                    {
+                                        istheLast = false;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    tmpnewLineTracker++;
+                } while (lstConfig[tmpnewLineTracker].Trim() != "</exclude>");
+            }
+            //}
+
+
+            return istheLast;
+        }
+
         private string BuildRules(string convertedlines)
         {
             RulesListed = false;
@@ -538,26 +599,7 @@ namespace UnicorntoCLIConverter
                         {
                             ruleList += "\r\n\t\t\t\t \"rules\": [";
                         }
-                        int totalchildrenCount = 1;
-                        int tmpLineTracker = intLineNumTracker;
-                        do
-                        {
-                            if (!IsBlankLine(tmpLineTracker)) currline = lstConfig[tmpLineTracker];
 
-                            if (currline.ToLowerInvariant().Contains("except ") && currline.ToLowerInvariant().Contains("name"))
-                            {
-                                var extractChildtoInclude = ExtractValueBetweenQuotes(currline, "name=", true);
-
-                                int tmpChildrenCount = extractChildtoInclude.Split('/').Length-1;
-                                if ((tmpChildrenCount > 1) && tmpChildrenCount > totalchildrenCount) totalchildrenCount = tmpChildrenCount;
-                            }
-                            //}
-
-                            tmpLineTracker += 1;
-
-                        } while (lstConfig[tmpLineTracker].Trim() != "</exclude>");
-
-                        int currentChildCount = 0;
                         do
                         {
                             if (!IsBlankLine(intLineNumTracker)) currline = lstConfig[intLineNumTracker];
@@ -575,7 +617,10 @@ namespace UnicorntoCLIConverter
 
                                 if (currline.ToLowerInvariant().Contains("except") && currline.ToLowerInvariant().Contains("includechildren=\"false\""))
                                 {
-                                    if (extractChildtoInclude.Split('/').Length-1 < totalchildrenCount)
+                                    if (ExcludeLineNumberStart == 0) ExcludeLineNumberStart = intLineNumTracker;
+                                    bool isSingleItem = IsSingleItem();
+                                    //invoke loop logic to find it except is singleitem
+                                    if (!isSingleItem)
                                     {
                                         rulestring = "\r\n\t\t\t\t\t\t\t \"scope\" : \"ItemandDescendants\",";
                                     }
@@ -599,6 +644,7 @@ namespace UnicorntoCLIConverter
                             intLineNumTracker += 1;
 
                         } while (lstConfig[intLineNumTracker].Trim() != "</exclude>");
+                        ExcludeLineNumberStart = 0;
 
                         if (lstConfig[intLineNumTracker].Trim() == "</exclude>")
                         {
@@ -691,6 +737,108 @@ namespace UnicorntoCLIConverter
             //if (currline.ToLowerInvariant().Contains("</include>")) intIncludeCount += 1;
         }
 
+        //one of the first activities
+        private void LoadListsforBaseConfig(string filePath = "")
+        {
+            //find helix.base.config in file system
+            //traverse to fill diff layer lists
+            var tmpconfigFileData = File.ReadAllText(filePath);
+
+            string strConfigText = tmpconfigFileData;//txtConfig.Text;
+
+            string convertedLine = string.Empty;
+            string currline = string.Empty;
+
+            for (int inttmpLineNumTracker = configurations.StartLineIndex; inttmpLineNumTracker <= configurations.EndLineIndex; inttmpLineNumTracker++)
+            {
+                //if (!CommentedLines.Contains(intLineNumTracker))
+                //{
+                foreach (var config in ConfigurationList)
+                {
+                    if (filePath.Trim().ToLowerInvariant().EndsWith("unicorn.helix.config"))
+                    {
+                        //extract separate info
+                        currline = lstConfig[inttmpLineNumTracker];
+                        if (currline.ToLowerInvariant().Contains("name=\"Helix.Foundation\""))
+                        {
+                            //start do loop and add the include name values to foundation list
+                            do
+                            {
+                                if (!IsBlankLine(inttmpLineNumTracker))
+                                {
+
+                                    currline = lstConfig[inttmpLineNumTracker];
+                                    if (currline.ToLowerInvariant().Contains("<include"))
+                                    {
+                                        var intFirst = IndexofnthOccurence(currline, '"', 1);
+                                        var intSecond = IndexofnthOccurence(currline, '"', 2);
+
+                                        var intStringLen = intSecond - intFirst;
+                                        string modulename = currline.Substring(intFirst, intStringLen + 1);
+                                        lstFoundationBase.Add(modulename.Replace("\"", string.Empty));
+                                    }
+
+                                }
+
+                                inttmpLineNumTracker += 1;
+
+                            } while (lstConfig[inttmpLineNumTracker].Trim() != "</configuration>");
+                        }
+                        else if (currline.ToLowerInvariant().Contains("name=\"Helix.Feature\""))
+                        {
+                            //start do loop and add the include name values to feature list
+                            do
+                            {
+                                if (!IsBlankLine(inttmpLineNumTracker))
+                                {
+
+                                    currline = lstConfig[inttmpLineNumTracker];
+                                    if (currline.ToLowerInvariant().Contains("<include"))
+                                    {
+                                        var intFirst = IndexofnthOccurence(currline, '"', 1);
+                                        var intSecond = IndexofnthOccurence(currline, '"', 2);
+
+                                        var intStringLen = intSecond - intFirst;
+                                        string modulename = currline.Substring(intFirst, intStringLen + 1);
+                                        lstFeatureBase.Add(modulename.Replace("\"", string.Empty));
+                                    }
+
+                                }
+
+                                inttmpLineNumTracker += 1;
+
+                            } while (lstConfig[inttmpLineNumTracker].Trim() != "</configuration>");
+                        }
+                        else if (currline.ToLowerInvariant().Contains("name=\"Helix.Project\""))
+                        {
+                            //start do loop and add the include name values to foundation list
+                            do
+                            {
+                                if (!IsBlankLine(inttmpLineNumTracker))
+                                {
+
+                                    currline = lstConfig[inttmpLineNumTracker];
+                                    if (currline.ToLowerInvariant().Contains("<include"))
+                                    {
+                                        var intFirst = IndexofnthOccurence(currline, '"', 1);
+                                        var intSecond = IndexofnthOccurence(currline, '"', 2);
+
+                                        var intStringLen = intSecond - intFirst;
+                                        string modulename = currline.Substring(intFirst, intStringLen + 1);
+                                        lstProjectBase.Add(modulename.Replace("\"", string.Empty));
+                                    }
+
+                                }
+
+                                inttmpLineNumTracker += 1;
+
+                            } while (lstConfig[inttmpLineNumTracker].Trim() != "</configuration>");
+                        }
+                    }
+                }
+            }
+        }
+
         private string ConverttoCLIModuleJson(string filePath = "")
         {
             string configFileData;
@@ -705,6 +853,9 @@ namespace UnicorntoCLIConverter
                 return string.Empty;//not serialization config
 
             GetLineNumbers(configFileData);
+            LoadListsforBaseConfig(filePath);
+            SaveBaseItemFile(filePath);
+
 
             //GetPredicateLineNumbers(configFileData);
             string strConfigText = configFileData;//txtConfig.Text;
@@ -723,88 +874,6 @@ namespace UnicorntoCLIConverter
                 RunningConfigNumber = 0;
                 foreach (var config in ConfigurationList)
                 {
-                    if (filePath.Trim().ToLowerInvariant().EndsWith("unicorn.helix.config"))
-                    {
-                        //extract separate info
-                        currline = lstConfig[intLineNumTracker];
-                        if (currline.ToLowerInvariant().Contains("name=\"Helix.Foundation\""))
-                        {
-                            //start do loop and add the include name values to foundation list
-                            do
-                            {
-                                if (!IsBlankLine(intLineNumTracker))
-                                {
-
-                                    currline = lstConfig[intLineNumTracker];
-                                    if (currline.ToLowerInvariant().Contains("<include"))
-                                    {
-                                        var intFirst = IndexofnthOccurence(currline, '"', 1);
-                                        var intSecond = IndexofnthOccurence(currline, '"', 2);
-
-                                        var intStringLen = intSecond - intFirst;
-                                        string modulename = currline.Substring(intFirst, intStringLen + 1);
-                                        lstFoundationBase.Add(modulename.Replace("\"",string.Empty));
-                                    }
-
-                                }
-
-                                intLineNumTracker += 1;
-
-                            } while (lstConfig[intLineNumTracker].Trim() != "</configuration>");
-                        }
-                        else if (currline.ToLowerInvariant().Contains("name=\"Helix.Feature\""))
-                        {
-                            //start do loop and add the include name values to feature list
-                            do
-                            {
-                                if (!IsBlankLine(intLineNumTracker))
-                                {
-
-                                    currline = lstConfig[intLineNumTracker];
-                                    if (currline.ToLowerInvariant().Contains("<include"))
-                                    {
-                                        var intFirst = IndexofnthOccurence(currline, '"', 1);
-                                        var intSecond = IndexofnthOccurence(currline, '"', 2);
-
-                                        var intStringLen = intSecond - intFirst;
-                                        string modulename = currline.Substring(intFirst, intStringLen + 1);
-                                        lstFeatureBase.Add(modulename.Replace("\"", string.Empty));
-                                    }
-
-                                }
-
-                                intLineNumTracker += 1;
-
-                            } while (lstConfig[intLineNumTracker].Trim() != "</configuration>");
-                        }
-                        else if (currline.ToLowerInvariant().Contains("name=\"Helix.Project\""))
-                        {
-                                //start do loop and add the include name values to foundation list
-                                do
-                                {
-                                    if (!IsBlankLine(intLineNumTracker))
-                                    {
-
-                                        currline = lstConfig[intLineNumTracker];
-                                        if (currline.ToLowerInvariant().Contains("<include"))
-                                        {
-                                            var intFirst = IndexofnthOccurence(currline, '"', 1);
-                                            var intSecond = IndexofnthOccurence(currline, '"', 2);
-
-                                            var intStringLen = intSecond - intFirst;
-                                            string modulename = currline.Substring(intFirst, intStringLen + 1);
-                                            lstProjectBase.Add(modulename.Replace("\"", string.Empty));
-                                        }
-
-                                    }
-
-                                    intLineNumTracker += 1;
-
-                                } while (lstConfig[intLineNumTracker].Trim() != "</configuration>");
-                        }
-                    }
-                    else
-                    {
                         RunningConfigNumber += 1;
                         if (intLineNumTracker == config.StartLineIndex)
                         {
@@ -815,7 +884,6 @@ namespace UnicorntoCLIConverter
                             convertedLine = GetConfigurationLine(line, config.ConfigurationNumber);
                             CurrentConfigNumber = config.ConfigurationNumber;//same as predicate number
                         }
-                    }
 
                 }
 
@@ -1091,14 +1159,11 @@ namespace UnicorntoCLIConverter
 
             foreach (var file in configFiles)
             {
-                if (file.ToLowerInvariant().Contains("obj\\debug") || file.ToLowerInvariant().Contains("\\bin\\") || file.ToLowerInvariant().Contains("\\packages\\") || file.ToLowerInvariant().Contains("\\.vs\\") || file.ToLowerInvariant().Contains("\\nuget.config") || file.ToLowerInvariant().Contains("\\packages.config") || file.ToLowerInvariant().Contains("\\web.config") || file.ToLowerInvariant().Contains("\\app.config") || file.ToLowerInvariant().Contains("\\web.debug.config") || file.ToLowerInvariant().Contains("\\web.release.config") || file.ToLowerInvariant().Contains("\\rainbow.config"))
-                { }
-                else
+                if (file.ToLowerInvariant().Contains(".serialization."))
                 {
                     //ExtractCommentedLines(file);
                     configurationNumber = 0;
                     //place to save corresponding base json file based on file path
-                    SaveBaseItemFile(file);
                     var convertedJsonString = ConverttoCLIModuleJson(file);
                     if (!string.IsNullOrWhiteSpace(convertedJsonString))
                     {
