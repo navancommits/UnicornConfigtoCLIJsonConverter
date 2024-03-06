@@ -1,4 +1,5 @@
 using System.Diagnostics.Eventing.Reader;
+using static System.Net.Mime.MediaTypeNames;
 using static System.Windows.Forms.LinkLabel;
 
 namespace UnicorntoCLIConverter
@@ -738,101 +739,73 @@ namespace UnicorntoCLIConverter
         }
 
         //one of the first activities
-        private void LoadListsforBaseConfig(string filePath = "")
+        private void LoadListsforBaseConfig()
         {
             //find helix.base.config in file system
             //traverse to fill diff layer lists
-            var tmpconfigFileData = File.ReadAllText(filePath);
+            var baseconfigfile = Directory
+               .GetFiles(txtSelectedPath.Text, "unicorn.helix.config", SearchOption.AllDirectories);
 
-            string strConfigText = tmpconfigFileData;//txtConfig.Text;
+            var tmpconfigFileData = File.ReadAllText(baseconfigfile.FirstOrDefault());
 
-            string convertedLine = string.Empty;
-            string currline = string.Empty;
+            GetLineNumbers(tmpconfigFileData);
 
-            for (int inttmpLineNumTracker = configurations.StartLineIndex; inttmpLineNumTracker <= configurations.EndLineIndex; inttmpLineNumTracker++)
+            string[] lsttmpConfig = tmpconfigFileData.Split(new Char[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
+
+            foreach (var config in ConfigurationList)
             {
-                //if (!CommentedLines.Contains(intLineNumTracker))
-                //{
-                foreach (var config in ConfigurationList)
+                if (config.ModuleName.ToLowerInvariant() == "\"helix.foundation\"" || config.ModuleName.ToLowerInvariant() == "\"helix.feature\"" || config.ModuleName.ToLowerInvariant() == "\"helix.project\"")
                 {
-                    if (filePath.Trim().ToLowerInvariant().EndsWith("unicorn.helix.config"))
+                    for (int i = config.StartLineIndex; i <= config.EndLineIndex; i++)
                     {
-                        //extract separate info
-                        currline = lstConfig[inttmpLineNumTracker];
-                        if (currline.ToLowerInvariant().Contains("name=\"Helix.Foundation\""))
+                        
+                        if (config.ModuleName.ToLowerInvariant() == "\"helix.foundation\"")
                         {
                             //start do loop and add the include name values to foundation list
-                            do
+                            string tmpcurrline = lsttmpConfig[i];
+
+                            if (tmpcurrline.Contains("<include name="))
                             {
-                                if (!IsBlankLine(inttmpLineNumTracker))
-                                {
+                                var intFirst = IndexofnthOccurence(tmpcurrline, '"', 1);
+                                var intSecond = IndexofnthOccurence(tmpcurrline, '"', 2);
 
-                                    currline = lstConfig[inttmpLineNumTracker];
-                                    if (currline.ToLowerInvariant().Contains("<include"))
-                                    {
-                                        var intFirst = IndexofnthOccurence(currline, '"', 1);
-                                        var intSecond = IndexofnthOccurence(currline, '"', 2);
+                                var intStringLen = intSecond - intFirst;
+                                string modulename = tmpcurrline.Substring(intFirst, intStringLen + 1);
+                                lstFoundationBase.Add(modulename.Replace("\"", string.Empty));
+                            }
 
-                                        var intStringLen = intSecond - intFirst;
-                                        string modulename = currline.Substring(intFirst, intStringLen + 1);
-                                        lstFoundationBase.Add(modulename.Replace("\"", string.Empty));
-                                    }
-
-                                }
-
-                                inttmpLineNumTracker += 1;
-
-                            } while (lstConfig[inttmpLineNumTracker].Trim() != "</configuration>");
                         }
-                        else if (currline.ToLowerInvariant().Contains("name=\"Helix.Feature\""))
-                        {
-                            //start do loop and add the include name values to feature list
-                            do
-                            {
-                                if (!IsBlankLine(inttmpLineNumTracker))
-                                {
-
-                                    currline = lstConfig[inttmpLineNumTracker];
-                                    if (currline.ToLowerInvariant().Contains("<include"))
-                                    {
-                                        var intFirst = IndexofnthOccurence(currline, '"', 1);
-                                        var intSecond = IndexofnthOccurence(currline, '"', 2);
-
-                                        var intStringLen = intSecond - intFirst;
-                                        string modulename = currline.Substring(intFirst, intStringLen + 1);
-                                        lstFeatureBase.Add(modulename.Replace("\"", string.Empty));
-                                    }
-
-                                }
-
-                                inttmpLineNumTracker += 1;
-
-                            } while (lstConfig[inttmpLineNumTracker].Trim() != "</configuration>");
-                        }
-                        else if (currline.ToLowerInvariant().Contains("name=\"Helix.Project\""))
+                        else if (config.ModuleName.ToLowerInvariant() == "\"helix.feature\"")
                         {
                             //start do loop and add the include name values to foundation list
-                            do
+                            string tmpcurrline = lsttmpConfig[i];
+
+                            if (tmpcurrline.Contains("<include name="))
                             {
-                                if (!IsBlankLine(inttmpLineNumTracker))
-                                {
+                                var intFirst = IndexofnthOccurence(tmpcurrline, '"', 1);
+                                var intSecond = IndexofnthOccurence(tmpcurrline, '"', 2);
 
-                                    currline = lstConfig[inttmpLineNumTracker];
-                                    if (currline.ToLowerInvariant().Contains("<include"))
-                                    {
-                                        var intFirst = IndexofnthOccurence(currline, '"', 1);
-                                        var intSecond = IndexofnthOccurence(currline, '"', 2);
+                                var intStringLen = intSecond - intFirst;
+                                string modulename = tmpcurrline.Substring(intFirst, intStringLen + 1);
+                                lstFeatureBase.Add(modulename.Replace("\"", string.Empty));
+                            }
 
-                                        var intStringLen = intSecond - intFirst;
-                                        string modulename = currline.Substring(intFirst, intStringLen + 1);
-                                        lstProjectBase.Add(modulename.Replace("\"", string.Empty));
-                                    }
+                        }
+                        else if (config.ModuleName.ToLowerInvariant() == "\"helix.project\"")
+                        {
+                            //start do loop and add the include name values to foundation list
+                            string tmpcurrline = lsttmpConfig[i];
 
-                                }
+                            if (tmpcurrline.Contains("<include name="))
+                            {
+                                var intFirst = IndexofnthOccurence(tmpcurrline, '"', 1);
+                                var intSecond = IndexofnthOccurence(tmpcurrline, '"', 2);
 
-                                inttmpLineNumTracker += 1;
+                                var intStringLen = intSecond - intFirst;
+                                string modulename = tmpcurrline.Substring(intFirst, intStringLen + 1);
+                                lstProjectBase.Add(modulename.Replace("\"", string.Empty));
+                            }
 
-                            } while (lstConfig[inttmpLineNumTracker].Trim() != "</configuration>");
                         }
                     }
                 }
@@ -845,6 +818,10 @@ namespace UnicorntoCLIConverter
             if (Mode == "P") configFileData = txtConfig.Text;
             else configFileData = File.ReadAllText(filePath);
 
+
+            if (!filePath.ToLowerInvariant().Contains("\\foundation\\serialization"))
+                SaveBaseItemFile(filePath);//one of the first activities since irrespective of the existence of a config file, base module json files must be saved 
+
             ruleList = string.Empty;
 
             if (configFileData.Contains("<!--")) CommentsPresent = true;
@@ -852,10 +829,7 @@ namespace UnicorntoCLIConverter
             if (!(configFileData.ToLowerInvariant().Contains("<predicate") && configFileData.ToLowerInvariant().Contains("<configuration ")))
                 return string.Empty;//not serialization config
 
-            GetLineNumbers(configFileData);
-            LoadListsforBaseConfig(filePath);
-            SaveBaseItemFile(filePath);
-
+            GetLineNumbers(configFileData);            
 
             //GetPredicateLineNumbers(configFileData);
             string strConfigText = configFileData;//txtConfig.Text;
@@ -982,20 +956,33 @@ namespace UnicorntoCLIConverter
             var concatenatedString = string.Empty;
 
             concatenatedString += "{";
-            concatenatedString+=  "\r\n\t\"namespace\": \"" + layerName + "." + moduleName + "\",";
+            concatenatedString+=  "\r\n\t\"namespace\": \"" + layerName + "." + moduleName + "." + baseString + "\",";
 
             concatenatedString += "\r\n\t\t\"items\": {";
             concatenatedString += "\r\n\t\t\t\"includes\": [";
 
-            concatenatedString += "\r\n\t\t\t\t\"{";
+            concatenatedString += "\r\n\t\t\t\t{";
             concatenatedString += "\r\n\t\t\t\t\t\"name\" : \"" + baseString + "\",";
-            concatenatedString += "\r\n\t\t\t\t\t\"path\" : \"/sitecore/" + layerName + "/" + moduleName + "\",";
+
+            if (baseString.ToLowerInvariant() == "templates")
+            {
+                concatenatedString += "\r\n\t\t\t\t\t\"path\" : \"/sitecore/" + baseString + "/" + layerName + "/" + moduleName + "\",";
+            }
+            else if (baseString.ToLowerInvariant() == "renderings")
+            {
+                concatenatedString += "\r\n\t\t\t\t\t\"path\" : \"/sitecore/layout/" + baseString + "/" + layerName + "/" + moduleName + "\",";
+            }
+            else if (baseString.ToLowerInvariant() == "media")
+            {
+                concatenatedString += "\r\n\t\t\t\t\t\"path\" : \"/sitecore/media library/" + layerName + "/" + moduleName + "\",";
+            }
+
             concatenatedString += "\r\n\t\t\t\t\t\"database\" : \"master\"";
 
             concatenatedString += "\r\n\t\t\t\t}";
 		    concatenatedString += "\r\n\t\t\t]";
             concatenatedString += "\r\n\t\t}";
-            concatenatedString += "}";
+            concatenatedString += "\r\n}";
 
             return concatenatedString;
         }
@@ -1019,12 +1006,12 @@ namespace UnicorntoCLIConverter
                             //foundation
                             foreach (var item in lstFoundationBase)
                             {
-                                int lastind = fileFullPath.LastIndexOf('\\');
-                                string modName = Right(fileFullPath, fileFullPath.Length - lastind);
+                                int lastind = parentdir.LastIndexOf('\\');
+                                string modName = Right(parentdir, parentdir.Length - lastind-1);
                                 //Generate the file and save
                                 var genString = GetBaseJsonFile("Foundation", modName, item);
 
-                                var baseFilePath = parentdir + "\\Foundation." + modName + "." + item + ".module.json";
+                                var baseFilePath = parentdir + "\\Foundation." + modName + "." + item + ".Serialization.module.json";
 
                                 File.WriteAllText(baseFilePath, genString);
                             }
@@ -1041,12 +1028,12 @@ namespace UnicorntoCLIConverter
                             //foundation
                             foreach (var item in lstFeatureBase)
                             {
-                                int lastind = fileFullPath.LastIndexOf('\\');
-                                string modName = Right(fileFullPath, fileFullPath.Length - lastind);
+                                int lastind = parentdir.LastIndexOf('\\');
+                                string modName = Right(parentdir, parentdir.Length - lastind - 1);
                                 //Generate the file and save
                                 var genString = GetBaseJsonFile("Feature", modName, item);
 
-                                var baseFilePath = parentdir + "\\Feature." + modName + "." + item + ".module.json";
+                                var baseFilePath = parentdir + "\\Feature." + modName + "." + item + ".Serialization.module.json";
 
                                 File.WriteAllText(baseFilePath, genString);
                             }
@@ -1063,12 +1050,12 @@ namespace UnicorntoCLIConverter
                             //foundation
                             foreach (var item in lstProjectBase)
                             {
-                                int lastind = fileFullPath.LastIndexOf('\\');
-                                string modName = Right(fileFullPath, fileFullPath.Length - lastind);
+                                int lastind = parentdir.LastIndexOf('\\');
+                                string modName = Right(parentdir, parentdir.Length - lastind-1);
                                 //Generate the file and save
                                 var genString = GetBaseJsonFile("Project", modName, item);
 
-                                var baseFilePath = parentdir + "\\Project." + modName + "." + item + ".module.json";
+                                var baseFilePath = parentdir + "\\Project." + modName + "." + item + ".Serialization.module.json";
 
                                 File.WriteAllText(baseFilePath, genString);
                             }
@@ -1148,7 +1135,7 @@ namespace UnicorntoCLIConverter
             if (string.IsNullOrWhiteSpace(txtSelectedPath.Text)) return;
             CommentedLines = new List<int>();
             Mode = "B";
-
+            LoadListsforBaseConfig();
             var ext = new List<string> { "config" };
             var configFiles = Directory
                 .EnumerateFiles(txtSelectedPath.Text, "*.config", SearchOption.AllDirectories)
@@ -1159,16 +1146,19 @@ namespace UnicorntoCLIConverter
 
             foreach (var file in configFiles)
             {
-                if (file.ToLowerInvariant().Contains(".serialization."))
+                if (!file.ToLowerInvariant().StartsWith("unicorn."))    
                 {
-                    //ExtractCommentedLines(file);
-                    configurationNumber = 0;
-                    //place to save corresponding base json file based on file path
-                    var convertedJsonString = ConverttoCLIModuleJson(file);
-                    if (!string.IsNullOrWhiteSpace(convertedJsonString))
+                    if (file.ToLowerInvariant().Contains(".serialization."))
                     {
-                        filePaths += file + "\r\n";
-                        fileCount++;
+                        //ExtractCommentedLines(file);
+                        configurationNumber = 0;
+                        //place to save corresponding base json file based on file path
+                        var convertedJsonString = ConverttoCLIModuleJson(file);
+                        if (!string.IsNullOrWhiteSpace(convertedJsonString))
+                        {
+                            filePaths += file + "\r\n";
+                            fileCount++;
+                        }
                     }
                 }
             }
