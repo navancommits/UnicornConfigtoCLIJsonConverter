@@ -1,4 +1,7 @@
-﻿namespace UnicorntoCLIConverter
+﻿using System.Drawing;
+using System.Windows.Forms;
+
+namespace UnicorntoCLIConverter
 {
     partial class frmConverterUtility
     {

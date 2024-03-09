@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.8.34525.116
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UnicorntoCLIConverter", "UnicorntoCLIConverter\UnicorntoCLIConverter.csproj", "{E0F97E9B-F634-4FFB-B4AE-EF342F59E4E6}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UnicorntoCLIConverter", "UnicorntoCLIConverter\UnicorntoCLIConverter.csproj", "{DE4CBD38-0ED5-4C7F-ACDD-658F5BF4622F}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -11,10 +11,10 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{E0F97E9B-F634-4FFB-B4AE-EF342F59E4E6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{E0F97E9B-F634-4FFB-B4AE-EF342F59E4E6}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{E0F97E9B-F634-4FFB-B4AE-EF342F59E4E6}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{E0F97E9B-F634-4FFB-B4AE-EF342F59E4E6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DE4CBD38-0ED5-4C7F-ACDD-658F5BF4622F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DE4CBD38-0ED5-4C7F-ACDD-658F5BF4622F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DE4CBD38-0ED5-4C7F-ACDD-658F5BF4622F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DE4CBD38-0ED5-4C7F-ACDD-658F5BF4622F}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
